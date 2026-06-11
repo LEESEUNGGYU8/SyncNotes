@@ -1,2 +1,6 @@
+# 런타임
 PySide6>=6.6
+comtypes>=1.4   # Windows JumpList COM 바인딩 (Windows 전용)
+
+# 개발 도구
 pytest>=8.0

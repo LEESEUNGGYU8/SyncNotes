@@ -1,0 +1,107 @@
+SyncNotes — End User License Agreement
+
+Copyright (c) 2026 이승규 (LEESEUNGGYU8)
+All rights reserved.
+
+This software ("SyncNotes") is distributed as freeware. By installing
+or using SyncNotes, you agree to the terms of this license.
+
+
+1. GRANT OF LICENSE
+
+   You are granted a non-exclusive, non-transferable, royalty-free
+   license to install and use SyncNotes on any number of computers,
+   for personal or commercial purposes, free of charge.
+
+
+2. REDISTRIBUTION
+
+   You may redistribute the unmodified installer or program files,
+   provided that:
+
+   (a) You retain this LICENSE.txt and the THIRD-PARTY-NOTICES.txt
+       file together with the redistributed copy.
+   (b) You retain the contents of the "licenses/" directory.
+   (c) You do not charge a fee for the software itself, beyond
+       reasonable media or distribution costs.
+
+
+3. RESTRICTIONS
+
+   Except as expressly permitted by this license or by applicable law:
+
+   (a) You may not modify, reverse-engineer, decompile, or disassemble
+       the SyncNotes program.
+   (b) You may not remove or alter copyright notices, attributions, or
+       this license.
+   (c) You may not sub-license, rent, lease, or sell the software.
+
+   These restrictions do not apply to the third-party components
+   distributed alongside SyncNotes — those components are governed by
+   their own license terms (see THIRD-PARTY-NOTICES.txt).
+
+
+4. THIRD-PARTY COMPONENTS
+
+   SyncNotes incorporates third-party software (Qt, PySide6,
+   Pretendard, Python, etc.) that is licensed under separate terms.
+   See THIRD-PARTY-NOTICES.txt and the "licenses/" directory.
+
+   To the extent that any third-party license conflicts with this
+   agreement, the third-party license prevails for that component.
+
+
+5. NO WARRANTY
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHOR OR COPYRIGHT HOLDER
+   BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN
+   AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF,
+   OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+   IN THE SOFTWARE.
+
+
+6. TERMINATION
+
+   This license terminates automatically if you fail to comply with
+   any of its terms. Upon termination, you must stop using and
+   destroy all copies of the software in your possession.
+
+
+================================================================================
+한국어 요약 (참고용 — 본문은 위의 영문이 우선합니다)
+================================================================================
+
+본 프로그램(SyncNotes)은 프리웨어로 배포됩니다. 본 라이선스의 조건을
+수용하시면 다음과 같이 사용하실 수 있습니다.
+
+1. 사용 허가
+   개인·상업 목적과 무관하게, 컴퓨터 수에 제한 없이 무료로 설치하고
+   사용하실 수 있습니다.
+
+2. 재배포
+   원본 설치 파일을 그대로 재배포할 수 있습니다. 다만 본 LICENSE.txt와
+   THIRD-PARTY-NOTICES.txt, 그리고 "licenses/" 폴더 전체를 함께
+   포함해야 하며, 소프트웨어 자체에 대해 대가를 받을 수 없습니다.
+
+3. 제한 사항
+   - 프로그램의 수정, 역공학(리버스 엔지니어링), 디컴파일, 디스어셈블은
+     관련 법령이 허용하는 범위를 제외하고 금지됩니다.
+   - 저작권 표기, 크레딧, 본 라이선스 문구는 임의로 제거·변경할 수
+     없습니다.
+   - 재라이선스, 임대, 판매는 허용되지 않습니다.
+
+   단, 함께 배포되는 제3자 구성요소는 위 제한이 아니라 각자의
+   라이선스(THIRD-PARTY-NOTICES.txt 참고)를 따릅니다.
+
+4. 제3자 구성요소
+   본 소프트웨어는 Qt, PySide6, Pretendard, Python 등 별도 라이선스로
+   제공되는 구성요소를 포함합니다. THIRD-PARTY-NOTICES.txt와
+   "licenses/" 폴더를 참조하세요.
+
+5. 무보증
+   본 소프트웨어는 어떠한 종류의 보증도 없이 "있는 그대로" 제공됩니다.
+   사용으로 발생하는 어떠한 손해에 대해서도 저작권자는 책임지지
+   않습니다.

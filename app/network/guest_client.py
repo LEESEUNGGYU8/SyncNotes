@@ -7,13 +7,18 @@ from ..models import new_id
 from ..protocol import (
     FrameParser,
     MSG_ACQUIRE_LOCK,
+    MSG_CREATE_FOLDER,
     MSG_CREATE_NOTE,
+    MSG_DELETE_FOLDER,
     MSG_DELETE_NOTE,
     MSG_GET_HISTORY,
     MSG_HELLO,
     MSG_PING,
     MSG_PONG,
     MSG_RELEASE_LOCK,
+    MSG_SET_NOTE_FOLDER,
+    MSG_SET_NOTE_PRIVACY,
+    MSG_UPDATE_FOLDER,
     MSG_UPDATE_NOTE,
     Message,
     make,
@@ -43,7 +48,6 @@ class GuestClient(ClientBase):
         self._reconnect_attempt = 0
         self._stopped = False
 
-    # ---- lifecycle ----
     def start(self) -> None:
         self._stopped = False
         self._do_connect()
@@ -67,7 +71,6 @@ class GuestClient(ClientBase):
         self._reconnect_attempt += 1
         self._reconnect_timer.start(delay)
 
-    # ---- socket events ----
     def _on_connected(self) -> None:
         self._reconnect_attempt = 0
         self.connectionChanged.emit(True)
@@ -78,8 +81,8 @@ class GuestClient(ClientBase):
         self._schedule_reconnect()
 
     def _on_socket_error(self, _err) -> None:
-        # errorOccurred may fire during connectToHost; disconnected will follow
-        # if the socket was actually up. Schedule reconnect defensively.
+        # 연결돼 있었다면 곧 disconnected 가 재연결을 예약하므로, 미연결
+        # 상태(connectToHost 실패)일 때만 여기서 직접 예약한다.
         if self._sock.state() == QAbstractSocket.UnconnectedState:
             self._schedule_reconnect()
 
@@ -91,21 +94,53 @@ class GuestClient(ClientBase):
                 continue
             self._dispatch(msg.type, msg.data)
 
-    # ---- sending ----
     def _send(self, msg: Message) -> None:
         if self._sock.state() == QAbstractSocket.ConnectedState:
             self._sock.write(msg.encode())
 
-    # ---- actions ----
     def acquire_lock(self, note_id: str) -> None:
         self._send(make(MSG_ACQUIRE_LOCK, note_id=note_id))
 
     def release_lock(self, note_id: str) -> None:
         self._send(make(MSG_RELEASE_LOCK, note_id=note_id))
 
-    def create_note(self, color: str, width: int, height: int) -> None:
+    def create_note(self, color: str, width: int, height: int,
+                    folder_id: str | None = None,
+                    private_owner: str | None = None) -> None:
         self._send(make(MSG_CREATE_NOTE, id=new_id(), color=color,
-                        width=width, height=height))
+                        width=width, height=height,
+                        folder_id=folder_id,
+                        private_owner=private_owner))
+
+    def set_note_folder(self, note_id: str,
+                         folder_id: str | None) -> None:
+        self._send(make(MSG_SET_NOTE_FOLDER, id=note_id,
+                        folder_id=folder_id))
+
+    def set_note_privacy(self, note_id: str, private: bool) -> None:
+        self._send(make(MSG_SET_NOTE_PRIVACY, id=note_id,
+                        private=private))
+
+    def create_folder(self, name: str, color: str,
+                      private: bool = False) -> None:
+        self._send(make(MSG_CREATE_FOLDER, id=new_id(), name=name,
+                        color=color, private=private))
+
+    def update_folder(self, folder_id: str, *,
+                       name: str | None = None,
+                       color: str | None = None,
+                       private: bool | None = None) -> None:
+        payload: dict = {"id": folder_id}
+        if name is not None:
+            payload["name"] = name
+        if color is not None:
+            payload["color"] = color
+        if private is not None:
+            payload["private"] = private
+        self._send(make(MSG_UPDATE_FOLDER, **payload))
+
+    def delete_folder(self, folder_id: str) -> None:
+        self._send(make(MSG_DELETE_FOLDER, id=folder_id))
 
     def update_note(
         self, note_id: str, content: str, color: str, width: int, height: int,

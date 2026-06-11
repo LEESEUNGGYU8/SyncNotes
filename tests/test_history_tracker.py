@@ -39,8 +39,8 @@ def test_record_create_and_delete(tmp_path):
     n = Note.new(user="alice")
     repo.insert_note(n)
 
-    c = ht.record_create(n, "alice")
-    d = ht.record_delete(n, "alice")
+    ht.record_create(n, "alice")
+    ht.record_delete(n, "alice")
     entries = repo.list_history(n.id)
     assert len(entries) == 2
     assert {e.action for e in entries} == {"create", "delete"}

@@ -6,21 +6,24 @@ from PySide6.QtCore import QObject, Signal
 
 
 class ClientBase(QObject):
-    """Unified interface subscribed by UI. Implemented by both guest (TCP) and
-    host-local clients so UI code does not branch on role."""
+    """게스트(TCP)와 호스트(in-process)가 같은 시그널을 제공해, UI가
+    역할에 따라 분기하지 않아도 되게 하는 통합 인터페이스."""
 
-    welcomed = Signal(dict)                  # {heartbeat_ms, notes, locks, users}
-    noteCreated = Signal(dict)               # note dict
+    welcomed = Signal(dict)                  # {heartbeat_ms, notes, locks, users, folders, host}
+    noteCreated = Signal(dict)
     noteUpdated = Signal(dict)
-    noteDeleted = Signal(str)                # note_id
-    lockGranted = Signal(str)                # note_id
+    noteDeleted = Signal(str)
+    folderCreated = Signal(dict)
+    folderUpdated = Signal(dict)
+    folderDeleted = Signal(str)
+    lockGranted = Signal(str)
     lockDenied = Signal(str, str)            # note_id, holder
     lockHeld = Signal(str, str)              # note_id, holder
-    lockReleased = Signal(str)               # note_id
+    lockReleased = Signal(str)
     userJoined = Signal(str)
     userLeft = Signal(str)
-    historyAppended = Signal(dict)           # history entry
-    historyList = Signal(str, list)          # note_id_or_'', [entries]
+    historyAppended = Signal(dict)
+    historyList = Signal(str, list)          # note_id 또는 '', [entries]
     connectionChanged = Signal(bool)
     errorOccurred = Signal(str)
 
@@ -31,22 +34,30 @@ class ClientBase(QObject):
     def nickname(self) -> str:
         return self._nickname
 
-    # --- lifecycle ---
     def start(self) -> None: ...
     def stop(self) -> None: ...
 
-    # --- actions ---
     def acquire_lock(self, note_id: str) -> None: ...
     def release_lock(self, note_id: str) -> None: ...
-    def create_note(self, color: str, width: int, height: int) -> None: ...
+    def create_note(self, color: str, width: int, height: int,
+                    folder_id: str | None = None,
+                    private_owner: str | None = None) -> None: ...
     def update_note(
         self, note_id: str, content: str, color: str, width: int, height: int,
         expected_version: int,
     ) -> None: ...
     def delete_note(self, note_id: str) -> None: ...
+    def set_note_folder(self, note_id: str, folder_id: str | None) -> None: ...
+    def set_note_privacy(self, note_id: str, private: bool) -> None: ...
+    def create_folder(self, name: str, color: str,
+                      private: bool = False) -> None: ...
+    def update_folder(self, folder_id: str, *,
+                       name: str | None = None,
+                       color: str | None = None,
+                       private: bool | None = None) -> None: ...
+    def delete_folder(self, folder_id: str) -> None: ...
     def get_history(self, note_id: str | None = None) -> None: ...
 
-    # --- helpers for subclasses dispatching incoming messages ---
     def _dispatch(self, msg_type: str, data: dict[str, Any]) -> None:
         if msg_type == "welcome":
             self.welcomed.emit(data)
@@ -56,6 +67,12 @@ class ClientBase(QObject):
             self.noteUpdated.emit(data.get("note", {}))
         elif msg_type == "note_deleted":
             self.noteDeleted.emit(data.get("id", ""))
+        elif msg_type == "folder_created":
+            self.folderCreated.emit(data.get("folder", {}))
+        elif msg_type == "folder_updated":
+            self.folderUpdated.emit(data.get("folder", {}))
+        elif msg_type == "folder_deleted":
+            self.folderDeleted.emit(data.get("id", ""))
         elif msg_type == "lock_granted":
             self.lockGranted.emit(data.get("note_id", ""))
         elif msg_type == "lock_denied":

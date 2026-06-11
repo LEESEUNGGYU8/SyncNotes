@@ -15,8 +15,6 @@ class _PendingSession:
 
 
 class HistoryTracker:
-    """Records edit sessions at host side and persists them on commit."""
-
     def __init__(self, repo: SqliteRepository):
         self.repo = repo
         self._pending: dict[str, _PendingSession] = {}

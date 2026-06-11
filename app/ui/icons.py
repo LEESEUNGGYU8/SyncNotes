@@ -54,6 +54,94 @@ _SVG = {
         '<path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" '
         'stroke="{color}" stroke-width="2" fill="none" stroke-linecap="round"/></svg>'
     ),
+    "bold": (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+        '<path d="M8 5h5.5a3.5 3.5 0 0 1 0 7H8V5z" '
+        'stroke="{color}" stroke-width="2" fill="none" stroke-linejoin="round"/>'
+        '<path d="M8 12h6.5a3.5 3.5 0 0 1 0 7H8v-7z" '
+        'stroke="{color}" stroke-width="2" fill="none" stroke-linejoin="round"/></svg>'
+    ),
+    "italic": (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+        '<path d="M10 5h8M6 19h8M14 5l-4 14" '
+        'stroke="{color}" stroke-width="2" stroke-linecap="round" fill="none"/></svg>'
+    ),
+    "underline": (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+        '<path d="M7 4v8a5 5 0 0 0 10 0V4" '
+        'stroke="{color}" stroke-width="2" stroke-linecap="round" fill="none"/>'
+        '<path d="M6 20h12" stroke="{color}" stroke-width="2" stroke-linecap="round"/></svg>'
+    ),
+    "strike": (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+        '<path d="M17 7.5c-1.2-1.7-3-2.5-5-2.5-2.8 0-4.5 1.4-4.5 3.2 0 1.6 1.4 2.6 3.5 3.3" '
+        'stroke="{color}" stroke-width="2" fill="none" stroke-linecap="round"/>'
+        '<path d="M7 16c1 1.8 3 3 5.5 3 2.8 0 4.5-1.4 4.5-3.3 0-1.1-.5-1.9-1.5-2.5" '
+        'stroke="{color}" stroke-width="2" fill="none" stroke-linecap="round"/>'
+        '<path d="M4 12h16" stroke="{color}" stroke-width="2" stroke-linecap="round"/></svg>'
+    ),
+    "list": (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+        '<circle cx="5" cy="6" r="1.6" fill="{color}"/>'
+        '<circle cx="5" cy="12" r="1.6" fill="{color}"/>'
+        '<circle cx="5" cy="18" r="1.6" fill="{color}"/>'
+        '<path d="M10 6h11M10 12h11M10 18h11" stroke="{color}" stroke-width="2" stroke-linecap="round"/></svg>'
+    ),
+    "highlight": (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+        '<path d="M7 15L12 5l5 10M9 12h6" stroke="{color}" stroke-width="2" '
+        'stroke-linecap="round" stroke-linejoin="round" fill="none"/>'
+        '<path d="M5 20h14" stroke="{color}" stroke-width="3" '
+        'stroke-linecap="round"/></svg>'
+    ),
+    "image": (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+        '<rect x="3" y="5" width="18" height="14" rx="2.5" '
+        'stroke="{color}" stroke-width="2" fill="none"/>'
+        '<circle cx="9" cy="10" r="1.6" fill="{color}"/>'
+        '<path d="M3.5 17.5l4.5-4 4 4 3.5-3 5 4.5" '
+        'stroke="{color}" stroke-width="2" fill="none" stroke-linejoin="round"/></svg>'
+    ),
+    "settings": (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+        '<circle cx="12" cy="12" r="3.2" stroke="{color}" stroke-width="2" fill="none"/>'
+        '<path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1'
+        'a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1'
+        'a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1'
+        'a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1'
+        'a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1'
+        'a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1'
+        'a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1'
+        'a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1'
+        'a1.7 1.7 0 0 0-1.5 1z" '
+        'stroke="{color}" stroke-width="2" fill="none" '
+        'stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    ),
+    "users": (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+        '<circle cx="9" cy="9" r="3.4" stroke="{color}" stroke-width="2" fill="none"/>'
+        '<path d="M3 19c0-3 2.7-5 6-5s6 2 6 5" stroke="{color}" stroke-width="2" '
+        'fill="none" stroke-linecap="round"/>'
+        '<path d="M16 11.4a3 3 0 1 0 0-5.8" stroke="{color}" stroke-width="2" '
+        'fill="none" stroke-linecap="round"/>'
+        '<path d="M17 14.2c2.4.4 4 2 4 4.3" stroke="{color}" stroke-width="2" '
+        'fill="none" stroke-linecap="round"/>'
+        '</svg>'
+    ),
+    "lock": (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+        '<path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="{color}" stroke-width="2" '
+        'fill="none" stroke-linecap="round"/>'
+        '<rect x="5.5" y="11" width="13" height="9" rx="2.2" '
+        'stroke="{color}" stroke-width="2" fill="none"/>'
+        '<circle cx="12" cy="15" r="1.2" fill="{color}"/>'
+        '</svg>'
+    ),
+    "folder": (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+        '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" '
+        'stroke="{color}" stroke-width="2" fill="none" stroke-linejoin="round"/></svg>'
+    ),
 }
 
 
@@ -70,13 +158,23 @@ def svg_icon(name: str, size: int = 18, color: str = "#333333") -> QIcon:
 
 
 def color_swatch_icon(color: str, size: int = 18) -> QIcon:
-    """Filled circle that visualizes the note's current background color."""
     pix = QPixmap(size, size)
     pix.fill(Qt.transparent)
     painter = QPainter(pix)
     painter.setRenderHint(QPainter.Antialiasing)
     painter.setBrush(QColor(color))
-    painter.setPen(QPen(QColor(0, 0, 0, 110), 1))
+    try:
+        r = int(color[1:3], 16)
+        g = int(color[3:5], 16)
+        b = int(color[5:7], 16)
+        lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0
+    except (ValueError, IndexError):
+        lum = 0.5
+    if lum < 0.30:
+        border = QColor(255, 255, 255, 110)
+    else:
+        border = QColor(0, 0, 0, 110)
+    painter.setPen(QPen(border, 1))
     margin = 2
     painter.drawEllipse(margin, margin, size - 2 * margin, size - 2 * margin)
     painter.end()

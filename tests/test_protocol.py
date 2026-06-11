@@ -1,4 +1,4 @@
-from app.protocol import FrameParser, Message, make
+from app.protocol import FrameParser, make
 
 
 def test_roundtrip():

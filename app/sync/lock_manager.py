@@ -25,7 +25,7 @@ class LockManager:
         return entry.holder if entry else None
 
     def acquire(self, note_id: str, user: str) -> tuple[bool, str | None]:
-        """Return (granted, current_holder). current_holder is set on denial."""
+        """``(획득 성공 여부, 현재 보유자)`` 를 반환한다."""
         existing = self._locks.get(note_id)
         if existing and existing.holder != user:
             return False, existing.holder

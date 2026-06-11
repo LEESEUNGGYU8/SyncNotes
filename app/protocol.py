@@ -5,19 +5,24 @@ import struct
 from dataclasses import dataclass
 from typing import Any
 
-LENGTH_HEADER = struct.Struct(">I")  # 4-byte big-endian unsigned int
+LENGTH_HEADER = struct.Struct(">I")
 
-# Client -> Server
+# 클라이언트 → 서버
 MSG_HELLO = "hello"
 MSG_ACQUIRE_LOCK = "acquire_lock"
 MSG_RELEASE_LOCK = "release_lock"
 MSG_CREATE_NOTE = "create_note"
 MSG_UPDATE_NOTE = "update_note"
 MSG_DELETE_NOTE = "delete_note"
+MSG_SET_NOTE_FOLDER = "set_note_folder"
+MSG_SET_NOTE_PRIVACY = "set_note_privacy"
+MSG_CREATE_FOLDER = "create_folder"
+MSG_UPDATE_FOLDER = "update_folder"
+MSG_DELETE_FOLDER = "delete_folder"
 MSG_PONG = "pong"
 MSG_GET_HISTORY = "get_history"
 
-# Server -> Client
+# 서버 → 클라이언트
 MSG_WELCOME = "welcome"
 MSG_LOCK_GRANTED = "lock_granted"
 MSG_LOCK_DENIED = "lock_denied"
@@ -26,6 +31,9 @@ MSG_LOCK_RELEASED = "lock_released"
 MSG_NOTE_CREATED = "note_created"
 MSG_NOTE_UPDATED = "note_updated"
 MSG_NOTE_DELETED = "note_deleted"
+MSG_FOLDER_CREATED = "folder_created"
+MSG_FOLDER_UPDATED = "folder_updated"
+MSG_FOLDER_DELETED = "folder_deleted"
 MSG_HISTORY_APPENDED = "history_appended"
 MSG_HISTORY_LIST = "history_list"
 MSG_USER_JOINED = "user_joined"
@@ -45,8 +53,6 @@ class Message:
 
 
 class FrameParser:
-    """Incrementally parse length-prefixed JSON frames from a byte stream."""
-
     def __init__(self) -> None:
         self._buf = bytearray()
 
@@ -66,7 +72,7 @@ class FrameParser:
                 payload = json.loads(body.decode("utf-8"))
                 out.append(Message(type=payload["type"], data=payload.get("data", {})))
             except (json.JSONDecodeError, KeyError, UnicodeDecodeError):
-                # Skip malformed frame; real protocol would close the connection.
+                # 잘못된 프레임은 연결을 끊지 않고 건너뛴다.
                 continue
         return out
 

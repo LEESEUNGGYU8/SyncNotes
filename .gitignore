@@ -1,0 +1,55 @@
+# 파이썬 빌드 산출물
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyd
+
+# PyInstaller / Inno Setup
+build/
+dist/
+*.spec.bak
+
+# 가상환경
+.venv/
+venv/
+env/
+
+# 에디터 / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# 사용자별 로컬 상태
+*.sqlite3
+*.sqlite3-journal
+local_state.json
+settings.json
+
+# pytest / 커버리지
+.pytest_cache/
+.coverage
+htmlcov/
+
+# 빌드용 임시 파일
+*.tmp
+*.log
+
+# OS 임시 파일
+desktop.ini
+
+# Claude Code 로컬 설정 (개인 권한/경로)
+.claude/settings.local.json
+
+# 개발/디버그 전용 리소스 (배포 및 저장소 공개 대상 아님)
+etc/
+
+# 빌드 / 배포 스크립트 (저장소 공개 대상 아님)
+/build.py
+/release.py
+/SyncNotes.spec
+/installer.iss
+/release-notes.txt
