@@ -22,12 +22,12 @@
 ## 미리보기
 
 <p align="center">
-  <img src="images/SyncNotes_main.png" width="360" alt="메인 창">
+  <img src="https://github.com/LEESEUNGGYU8/SyncNotes-releases/blob/main/images/SyncNotes_main.png" width="360" alt="메인 창">
 </p>
 
 <p align="center">
-  <img src="images/SyncNotes_notes.png" width="360" alt="포스트잇">
-  <img src="images/SyncNotes_gif.gif" width="360" alt="SyncNotes 사용 예시">
+  <img src="https://github.com/LEESEUNGGYU8/SyncNotes-releases/blob/main/images/SyncNotes_notes.png" width="360" alt="포스트잇">
+  <img src="https://github.com/LEESEUNGGYU8/SyncNotes-releases/blob/main/images/SyncNotes_gif.gif" width="360" alt="SyncNotes 사용 예시">
 </p>
 
 ## 주요 기능
