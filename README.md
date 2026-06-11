@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="images/logo.png" width="1000" alt="SyncNotes">
+  <img src="[images/logo.png](https://github.com/LEESEUNGGYU8/SyncNotes-releases/blob/main/images/logo.png?raw=true)" width="1000" alt="SyncNotes">
 </p>
 
 <h1 align="center">SyncNotes</h1>
