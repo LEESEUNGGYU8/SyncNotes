@@ -1194,10 +1194,15 @@ class MainWindow(QMainWindow):
             w.privateToggleRequested.connect(
                 self._on_card_private_toggled)
             w.positionChanged.connect(self._on_position_changed)
+            w.sizeChanged.connect(self._on_size_changed)
             self._stickies[note_id] = w
 
         st = self._local.state.get_note_state(note_id)
         w.move(st.x, st.y)
+        # 창 크기는 위치처럼 클라이언트별 로컬 상태다. 저장된 값이 있으면
+        # 서버 기본 크기보다 우선한다.
+        if st.w and st.h:
+            w.resize(st.w, st.h)
         holder = self._locks.get(note_id)
         if holder and holder != self._client.nickname():
             w.set_lock_holder(holder)
@@ -1214,6 +1219,10 @@ class MainWindow(QMainWindow):
 
     def _on_position_changed(self, note_id: str, x: int, y: int) -> None:
         self._local.state.set_note_state(note_id, x=x, y=y)
+        self._local.save()
+
+    def _on_size_changed(self, note_id: str, w: int, h: int) -> None:
+        self._local.state.set_note_state(note_id, w=w, h=h)
         self._local.save()
 
     def _set_note_visibility(self, note_id: str, visible: bool) -> None:
@@ -1408,6 +1417,23 @@ class MainWindow(QMainWindow):
         super().closeEvent(event)
 
 
+def _soft_breakable(text: str, run_limit: int = 12) -> str:
+    """공백 없는 긴 글자열(예: 무공백 CJK)도 카드 폭에서 줄바꿈되도록,
+    연속 비공백이 일정 길이를 넘으면 제로폭 공백을 끼워 끊을 곳을 만든다."""
+    out: list[str] = []
+    run = 0
+    for ch in text:
+        out.append(ch)
+        if ch.isspace():
+            run = 0
+        else:
+            run += 1
+            if run >= run_limit:
+                out.append("​")
+                run = 0
+    return "".join(out)
+
+
 class _NoteCard(QFrame):
     clicked = Signal(str)
     rangeClickRequested = Signal(str)
@@ -1537,14 +1563,14 @@ class _NoteCard(QFrame):
         if len(body) > 180:
             body = body[:180] + "…"
 
-        self._title.setText(title)
+        self._title.setText(_soft_breakable(title))
         if body:
-            self._body.setText(body)
+            self._body.setText(_soft_breakable(body))
             self._body.show()
         else:
             self._body.hide()
 
-        self._image_indicator.setVisible(image_only)
+        self._image_indicator.setVisible(has_image)
         # 서버가 청중을 이미 필터링하므로, 이 메모가 도달했다면 본인이 곧 소유자다.
         self._private = bool(note.get("private_owner"))
         self._private_indicator.setVisible(self._private)

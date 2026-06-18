@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import difflib
 import html
+import re
 from datetime import datetime
 from typing import Any
 
@@ -27,7 +28,17 @@ from PySide6.QtWidgets import (
 
 from .. import datetime_fmt, i18n
 from . import theme
-from .rich_text import html_to_plain
+from .rich_text import html_to_plain, is_marker_url
+
+
+_IMG_SRC_RE = re.compile(r'<img[^>]*src=["\']([^"\']+)["\']', re.IGNORECASE)
+
+
+def _count_content_images(html_str: str | None) -> int:
+    if not html_str:
+        return 0
+    return sum(1 for m in _IMG_SRC_RE.finditer(html_str)
+               if not is_marker_url(m.group(1)))
 
 
 _ACTION_COLOR = {
@@ -54,7 +65,21 @@ def _fmt_relative(ms: int) -> str:
 def _render_inline_diff(before: str | None, after: str | None) -> str:
     a = html_to_plain(before or "")
     b = html_to_plain(after or "")
+    img_delta = _count_content_images(after) - _count_content_images(before)
+    img_note = ""
+    if img_delta > 0:
+        img_note = i18n.t("history.image_added", n=img_delta)
+    elif img_delta < 0:
+        img_note = i18n.t("history.image_removed", n=-img_delta)
+    note_html = ""
+    if img_note:
+        note_html = (
+            '<div style="margin-bottom:8px; padding:4px 10px; '
+            'background:#EAF6EE; color:#0E5E2B; border-radius:6px; '
+            'font-weight:600;">' + html.escape(img_note) + '</div>')
     if a == b:
+        if note_html:
+            return note_html
         return ('<div style="color:#8A8A8A; font-style:italic;">'
                 + i18n.t("history.no_body_change") + '</div>')
 
@@ -99,9 +124,10 @@ def _render_inline_diff(before: str | None, after: str | None) -> str:
                 f'text-decoration:line-through; border-radius:3px; padding:0 2px;">{del_seg}</span>'
                 f'<span style="background:#DFF5E1; color:#0E5E2B; '
                 f'border-radius:3px; padding:0 2px;">{ins_seg}</span>')
-    return (f'<div style="font-family: {theme.CONTENT_FONT_STACK}; '
-            'font-size: 13px; line-height: 1.7; color:#1F1F1F; '
-            'white-space: pre-wrap;">' + "".join(parts) + "</div>")
+    return note_html + (
+        f'<div style="font-family: {theme.CONTENT_FONT_STACK}; '
+        'font-size: 13px; line-height: 1.7; color:#1F1F1F; '
+        'white-space: pre-wrap;">' + "".join(parts) + "</div>")
 
 
 class _HistoryItemDelegate(QStyledItemDelegate):

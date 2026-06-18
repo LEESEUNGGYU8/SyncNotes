@@ -19,6 +19,7 @@ from PySide6.QtGui import (
     QPen,
     QPixmap,
     QShortcut,
+    QTextBlockFormat,
     QTextCharFormat,
     QTextCursor,
     QTextFormat,
@@ -44,17 +45,26 @@ from .menu_item import add_centered_menu_action
 from .rich_text import (
     BULLET_ARROW,
     BULLET_CIRCLE,
+    BULLET_CODES,
     BULLET_INFO,
     BULLET_SQUARE,
     CHECKBOX_HEIGHT,
     CHECKBOX_WIDTH,
+    MARKER_ARROW,
+    MARKER_CHECK0,
+    MARKER_CHECK1,
+    MARKER_CIRCLE,
+    MARKER_CODES,
+    MARKER_INFO,
+    MARKER_MARGIN,
+    MARKER_NONE,
+    MARKER_PROP,
+    MARKER_SQUARE,
     RichTextEdit,
-    bullet_markers,
     bullet_qicon,
-    bullet_url_for,
     checkbox_qicon,
-    checkbox_url,
-    is_bullet_url,
+    marker_code_for_url,
+    marker_url_for_code,
 )
 from .theme import RoundedScrollBar
 
@@ -113,9 +123,6 @@ def _make_format_button(icon: QIcon, tip: str, checkable: bool = False) -> QTool
     return b
 
 
-BULLET_MARKERS = bullet_markers()
-
-
 HIGHLIGHT_COLORS = [
     "#FFF59D",
     "#C5E1A5",
@@ -125,6 +132,16 @@ HIGHLIGHT_COLORS = [
     "#D1C4E9",
 ]
 DEFAULT_HIGHLIGHT_COLOR = HIGHLIGHT_COLORS[0]
+
+FONT_COLORS = [
+    "#1F1F1F",
+    "#D64545",
+    "#E8830C",
+    "#1F8A4C",
+    "#1D6FD6",
+    "#7A3FCB",
+    "#C2185B",
+]
 
 
 def _highlight_swatch_icon(color: str | None, size: int = 18) -> QIcon:
@@ -167,6 +184,7 @@ class StickyNoteWidget(QWidget):
     historyRequested = Signal(str)
     privateToggleRequested = Signal(str, bool)  # note_id, new_private
     positionChanged = Signal(str, int, int)
+    sizeChanged = Signal(str, int, int)  # note_id, w, h
 
     _DEFAULT_FONT_SIZE = 11
     _AUTOSAVE_INTERVAL_MS = 30_000
@@ -288,6 +306,10 @@ class StickyNoteWidget(QWidget):
         self._strike_btn = _make_format_button(
             svg_icon("strike"), i18n.t("sticky.tip_strike"), True)
 
+        self._font_color_btn = _make_format_button(
+            svg_icon("text_color"), i18n.t("sticky.tip_font_color"))
+        self._font_color_btn.clicked.connect(self._show_font_color_menu)
+
         self._highlight_btn = _make_format_button(
             svg_icon("highlight"), i18n.t("sticky.tip_highlight"))
         self._highlight_btn.clicked.connect(self._show_highlight_menu)
@@ -298,19 +320,19 @@ class StickyNoteWidget(QWidget):
         add_centered_menu_action(
             self._list_menu, bullet_qicon(BULLET_CIRCLE),
             i18n.t("sticky.menu_circle"),
-            lambda: self._apply_bullet_marker(BULLET_CIRCLE))
+            lambda: self._apply_bullet_marker(MARKER_CIRCLE))
         add_centered_menu_action(
             self._list_menu, bullet_qicon(BULLET_SQUARE),
             i18n.t("sticky.menu_square"),
-            lambda: self._apply_bullet_marker(BULLET_SQUARE))
+            lambda: self._apply_bullet_marker(MARKER_SQUARE))
         add_centered_menu_action(
             self._list_menu, bullet_qicon(BULLET_ARROW),
             i18n.t("sticky.menu_arrow"),
-            lambda: self._apply_bullet_marker(BULLET_ARROW))
+            lambda: self._apply_bullet_marker(MARKER_ARROW))
         add_centered_menu_action(
             self._list_menu, bullet_qicon(BULLET_INFO),
             i18n.t("sticky.menu_info"),
-            lambda: self._apply_bullet_marker(BULLET_INFO))
+            lambda: self._apply_bullet_marker(MARKER_INFO))
         self._list_menu.addSeparator()
         add_centered_menu_action(
             self._list_menu, checkbox_qicon(False),
@@ -334,12 +356,13 @@ class StickyNoteWidget(QWidget):
         self._image_btn.clicked.connect(self._attach_image)
 
         for b in (self._bold_btn, self._italic_btn, self._underline_btn,
-                  self._strike_btn, self._highlight_btn, self._list_btn,
-                  self._image_btn):
+                  self._strike_btn, self._font_color_btn, self._highlight_btn,
+                  self._list_btn, self._image_btn):
             fb.addWidget(b)
         fb.addStretch(1)
 
         self._grip = QSizeGrip(self._format_bar)
+        self._grip.installEventFilter(self)
         fb.addWidget(self._grip)
         root.addWidget(self._format_bar)
 
@@ -363,6 +386,10 @@ class StickyNoteWidget(QWidget):
         self._overlay.hide()
 
         self._drag_offset: QPoint | None = None
+        # 파일 대화상자가 열리면 창이 비활성화되는데, 그때 changeEvent 가
+        # 편집을 조기 커밋해 이후 삽입된 이미지가 세션 밖에서 처리되지
+        # 않도록 막는 플래그.
+        self._opening_dialog = False
 
         # 미완료 편집이 크래시나 강제 종료에서 살아남도록 주기적으로 저장한다.
         self._autosave_timer = QTimer(self)
@@ -381,10 +408,75 @@ class StickyNoteWidget(QWidget):
             self._text.setHtml(content)
         else:
             self._text.setPlainText(content)
-        self._text.fit_images_to_viewport()
+        self._convert_loaded_markers()
+        # 아직 표시 전이면 뷰포트 폭이 확정되지 않아 fit 이 이미지를 과하게
+        # 줄인다. 표시되면 RichTextEdit.resizeEvent 가 알맞은 폭으로 맞춘다.
+        if self.isVisible():
+            self._text.fit_images_to_viewport()
         # load·fit 을 undo 스택에서 제거해 첫 Ctrl+Z 가 fit 이전
         # 이미지 크기로 되돌아가지 않게 한다.
         self._text.document().clearUndoRedoStacks()
+
+    def _leading_marker(self, block) -> tuple[int, int]:
+        """블록 맨 앞에 인라인 마커 이미지가 있으면 ``(code, 제거할 글자수)``
+        를 반환한다. 마커 이미지 + 뒤 공백 0~2 개를 함께 센다."""
+        it = block.begin()
+        if it.atEnd():
+            return (MARKER_NONE, 0)
+        fmt = it.fragment().charFormat()
+        if not fmt.isImageFormat():
+            return (MARKER_NONE, 0)
+        code = marker_code_for_url(fmt.toImageFormat().name())
+        if code == MARKER_NONE:
+            return (MARKER_NONE, 0)
+        text = block.text()
+        length = 1
+        while length < 3 and len(text) > length and text[length] == " ":
+            length += 1
+        return (code, length)
+
+    def _convert_loaded_markers(self) -> None:
+        """저장본의 인라인 마커 이미지(+뒤 공백)를 블록 마커 속성으로 바꾼다.
+        구버전 인라인 이미지 저장본도 이렇게 현재 모델로 흡수한다."""
+        doc = self._text.document()
+        positions = []
+        block = doc.begin()
+        while block.isValid():
+            positions.append(block.position())
+            block = block.next()
+        for pos in reversed(positions):
+            code, length = self._leading_marker(doc.findBlock(pos))
+            if code == MARKER_NONE:
+                continue
+            bc = QTextCursor(doc)
+            bc.setPosition(pos)
+            bc.setPosition(pos + length, QTextCursor.KeepAnchor)
+            bc.removeSelectedText()
+            self._set_block_marker(doc.findBlock(pos), code)
+
+    def _marker_save_html(self) -> str:
+        """블록 마커를 인라인 이미지로 되살린 HTML 을 만든다. 저장 형식은
+        예전과 같아(인라인 이미지 + 공백) 호환되고, 다시 불러올 때 블록
+        마커로 변환된다. 라이브 문서는 그대로 두고 복제본에서 작업한다."""
+        clone = self._text.document().clone()
+        positions = []
+        block = clone.begin()
+        while block.isValid():
+            positions.append(
+                (block.position(),
+                 block.blockFormat().intProperty(MARKER_PROP)))
+            block = block.next()
+        for pos, code in reversed(positions):
+            cur = QTextCursor(clone)
+            cur.setPosition(pos)
+            # 저장 형식엔 여백 대신 인라인 이미지를 둔다.
+            no_margin = QTextBlockFormat()
+            no_margin.setLeftMargin(0.0)
+            cur.mergeBlockFormat(no_margin)
+            if code in MARKER_CODES:
+                cur.insertImage(self._make_marker_image_format(code))
+                cur.insertText("  ")
+        return clone.toHtml()
 
     def _current_content(self) -> str:
         """서식이 있으면 HTML, 없으면 이력 diff 가독성을 위해 평문을 반환한다.
@@ -398,6 +490,9 @@ class StickyNoteWidget(QWidget):
         has_rich = False
         block = doc.begin()
         while block.isValid() and not has_rich:
+            if self._marker_code(block) in MARKER_CODES:
+                has_rich = True
+                break
             it = block.begin()
             while not it.atEnd():
                 frag = it.fragment()
@@ -416,11 +511,9 @@ class StickyNoteWidget(QWidget):
                         has_rich = True
                         break
                 it += 1
-            if not has_rich and block.textList() is not None:
-                has_rich = True
             block = block.next()
         if has_rich:
-            return self._text.toHtml()
+            return self._marker_save_html()
         return plain
 
     def apply_server_state(self, note: dict[str, Any]) -> None:
@@ -491,8 +584,8 @@ class StickyNoteWidget(QWidget):
 
     def _set_format_bar_enabled(self, enabled: bool) -> None:
         for b in (self._bold_btn, self._italic_btn, self._underline_btn,
-                  self._strike_btn, self._highlight_btn, self._list_btn,
-                  self._image_btn):
+                  self._strike_btn, self._font_color_btn, self._highlight_btn,
+                  self._list_btn, self._image_btn):
             b.setEnabled(enabled)
 
     def _refresh_lock_ui(self) -> None:
@@ -736,6 +829,7 @@ class StickyNoteWidget(QWidget):
         self._italic_btn.setIcon(svg_icon("italic", color=fg))
         self._underline_btn.setIcon(svg_icon("underline", color=fg))
         self._strike_btn.setIcon(svg_icon("strike", color=fg))
+        self._font_color_btn.setIcon(svg_icon("text_color", color=fg))
         self._highlight_btn.setIcon(svg_icon("highlight", color=fg))
         self._list_btn.setIcon(svg_icon("list", color=fg))
         self._image_btn.setIcon(svg_icon("image", color=fg))
@@ -807,48 +901,112 @@ class StickyNoteWidget(QWidget):
         self._apply_highlight(None if already_highlighted
                               else DEFAULT_HIGHLIGHT_COLOR)
 
+    def _show_font_color_menu(self) -> None:
+        if not self._edit_mode:
+            self._request_edit()
+            return
+        menu = QMenu(self)
+        container = QWidget(menu)
+        outer = QVBoxLayout(container)
+        outer.setContentsMargins(6, 6, 6, 6)
+        outer.setSpacing(4)
+        grid = QGridLayout()
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setHorizontalSpacing(6)
+        grid.setVerticalSpacing(6)
+        for index, hex_color in enumerate(FONT_COLORS):
+            r, c = divmod(index, 4)
+            btn = QToolButton(container)
+            btn.setFixedSize(28, 28)
+            btn.setIcon(color_swatch_icon(hex_color, 22))
+            btn.setIconSize(QSize(22, 22))
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setFocusPolicy(Qt.NoFocus)
+            btn.setStyleSheet(
+                "QToolButton { border: none; padding: 2px; "
+                "border-radius: 6px; background: transparent; }"
+                "QToolButton:hover { background: rgba(0,0,0,0.08); }")
+            btn.clicked.connect(
+                lambda _checked=False, c=hex_color, m=menu:
+                    (self._apply_font_color(c), m.close()))
+            grid.addWidget(btn, r, c)
+        outer.addLayout(grid)
+
+        divider = QFrame(container)
+        divider.setFrameShape(QFrame.HLine)
+        divider.setStyleSheet("color: rgba(0,0,0,0.08);")
+        outer.addWidget(divider)
+
+        default_btn = QToolButton(container)
+        default_btn.setText(i18n.t("sticky.font_color_default"))
+        default_btn.setIcon(color_swatch_icon(_text_color_for_bg(self.color), 18))
+        default_btn.setIconSize(QSize(18, 18))
+        default_btn.setCursor(Qt.PointingHandCursor)
+        default_btn.setFocusPolicy(Qt.NoFocus)
+        default_btn.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        default_btn.setFixedHeight(26)
+        default_btn.setStyleSheet(
+            "QToolButton { border: none; padding: 2px 6px; "
+            "border-radius: 6px; background: transparent; "
+            "color: #1F1F1F; font-size: 12px; text-align: left; }"
+            "QToolButton:hover { background: rgba(0,0,0,0.08); }")
+        default_btn.clicked.connect(
+            lambda _checked=False, m=menu:
+                (self._apply_font_color(None), m.close()))
+        outer.addWidget(default_btn)
+
+        action = QWidgetAction(menu)
+        action.setDefaultWidget(container)
+        menu.addAction(action)
+        menu.exec(self._font_color_btn.mapToGlobal(
+            QPoint(0, self._font_color_btn.height())))
+
+    def _apply_font_color(self, color: str | None) -> None:
+        if not self._edit_mode:
+            return
+        fmt = QTextCharFormat()
+        if color is None:
+            fmt.setForeground(QBrush(QColor(_text_color_for_bg(self.color))))
+        else:
+            fmt.setForeground(QBrush(QColor(color)))
+        self._merge_char_format(fmt)
+        self._refresh_format_buttons()
+
     def _toggle_list(self) -> None:
         if not self._edit_mode:
             return
-        self._apply_bullet_marker(BULLET_CIRCLE)
+        self._apply_bullet_marker(MARKER_CIRCLE)
 
-    def _block_marker_info(self, block) -> tuple[str | None, int, str]:
-        """``(kind, length_in_chars, marker_url)`` 을 반환한다. ``kind`` 는
-        ``"bullet"``/``"checkbox_empty"``/``"checkbox_checked"``, 없으면
-        ``None``. ``length_in_chars`` 는 이미지 문자에 뒤 공백 0~2 개를
-        더한 값으로, 공백 1개를 쓰던 구버전 저장본도 인식한다. ``marker_url``
-        은 ``"bullet"`` 일 때만 채워진다."""
-        text = block.text()
-        it = block.begin()
-        if it.atEnd():
-            return (None, 0, "")
-        frag = it.fragment()
-        fmt = frag.charFormat()
-        if not fmt.isImageFormat():
-            return (None, 0, "")
-        url = fmt.toImageFormat().name()
-        if url == checkbox_url(False):
-            kind = "checkbox_empty"
-        elif url == checkbox_url(True):
-            kind = "checkbox_checked"
-        elif is_bullet_url(url):
-            kind = "bullet"
+    def _marker_code(self, block) -> int:
+        return block.blockFormat().intProperty(MARKER_PROP)
+
+    def _set_block_marker(self, block, code: int) -> None:
+        """블록 마커를 설정/해제한다. 마커가 있으면 본문을 마커 폭만큼 들여
+        paintEvent 가 여백에 글리프를 그릴 자리를 비운다. 블록 포맷에 두므로
+        undo 로 되돌릴 수 있고, 줄 분할 시 여백과 함께 상속돼 리스트가
+        자연히 이어진다."""
+        if not block.isValid():
+            return
+        new_bf = QTextBlockFormat()
+        if code in MARKER_CODES:
+            new_bf.setProperty(MARKER_PROP, code)
+            new_bf.setLeftMargin(MARKER_MARGIN)
         else:
-            return (None, 0, "")
-        length = 1
-        while length < 3 and len(text) > length and text[length] == " ":
-            length += 1
-        return (kind, length, url if kind == "bullet" else "")
+            new_bf.setProperty(MARKER_PROP, MARKER_NONE)
+            new_bf.setLeftMargin(0.0)
+        QTextCursor(block).mergeBlockFormat(new_bf)
+        self._text.viewport().update()
 
     def _strip_block_marker(self, block) -> None:
-        kind, length, _ = self._block_marker_info(block)
-        if kind is None or length <= 0:
-            return
-        bc = QTextCursor(self._text.document())
-        start = block.position()
-        bc.setPosition(start)
-        bc.setPosition(start + length, QTextCursor.KeepAnchor)
-        bc.removeSelectedText()
+        self._set_block_marker(block, MARKER_NONE)
+
+    def _make_marker_image_format(self, code: int) -> QTextImageFormat:
+        fmt = QTextImageFormat()
+        fmt.setName(marker_url_for_code(code) or "")
+        fmt.setWidth(float(CHECKBOX_WIDTH))
+        fmt.setHeight(float(CHECKBOX_HEIGHT))
+        fmt.setVerticalAlignment(QTextCharFormat.AlignMiddle)
+        return fmt
 
     def _selected_block_positions(self) -> list[int]:
         cursor = self._text.textCursor()
@@ -864,120 +1022,75 @@ class StickyNoteWidget(QWidget):
             block = block.next()
         return positions
 
-    def _apply_bullet_marker(self, marker: str) -> None:
-        """모든 줄이 이미 같은 마커면 제거하고, 아니면 삽입한다."""
-        if not self._edit_mode:
-            return
-        target_url = bullet_url_for(marker)
-        if not target_url:
-            return
+    def _apply_marker_to_selection(self, code: int, *,
+                                    is_member) -> None:
         doc = self._text.document()
         positions = self._selected_block_positions()
         if not positions:
             return
-        all_same = True
-        for pos in positions:
-            kind, _length, url = self._block_marker_info(doc.findBlock(pos))
-            if not (kind == "bullet" and url == target_url):
-                all_same = False
-                break
-        for pos in reversed(positions):
-            block = doc.findBlock(pos)
-            self._strip_block_marker(block)
-            if not all_same:
-                block = doc.findBlock(pos)
-                bc = QTextCursor(doc)
-                bc.setPosition(block.position())
-                bc.insertImage(self._make_bullet_format(target_url))
-                bc.insertText("  ")
+        all_same = all(is_member(self._marker_code(doc.findBlock(pos)))
+                       for pos in positions)
+        target = MARKER_NONE if all_same else code
+        cursor = self._text.textCursor()
+        cursor.beginEditBlock()
+        try:
+            for pos in positions:
+                self._set_block_marker(doc.findBlock(pos), target)
+        finally:
+            cursor.endEditBlock()
         self._refresh_format_buttons()
 
-    def _make_bullet_format(self, url: str) -> QTextImageFormat:
-        fmt = QTextImageFormat()
-        fmt.setName(url)
-        fmt.setWidth(float(CHECKBOX_WIDTH))
-        fmt.setHeight(float(CHECKBOX_HEIGHT))
-        fmt.setVerticalAlignment(QTextCharFormat.AlignMiddle)
-        return fmt
+    def _apply_bullet_marker(self, code: int) -> None:
+        """선택한 줄이 모두 같은 글머리면 제거하고, 아니면 설정한다."""
+        if not self._edit_mode or code not in BULLET_CODES:
+            return
+        self._apply_marker_to_selection(code, is_member=lambda c: c == code)
 
     def _apply_checkbox_marker(self) -> None:
-        """모든 줄이 이미 체크박스면 제거하고, 아니면 삽입한다."""
+        """선택한 줄이 모두 체크박스면 제거하고, 아니면 설정한다."""
         if not self._edit_mode:
             return
-        doc = self._text.document()
-        positions = self._selected_block_positions()
-        if not positions:
-            return
-        all_checkbox = True
-        for pos in positions:
-            block = doc.findBlock(pos)
-            kind, _length, _url = self._block_marker_info(block)
-            if kind not in ("checkbox_empty", "checkbox_checked"):
-                all_checkbox = False
-                break
-        for pos in reversed(positions):
-            block = doc.findBlock(pos)
-            self._strip_block_marker(block)
-            if not all_checkbox:
-                block = doc.findBlock(pos)
-                bc = QTextCursor(doc)
-                bc.setPosition(block.position())
-                img_fmt = self._make_checkbox_format(False)
-                bc.insertImage(img_fmt)
-                bc.insertText("  ")
-        self._refresh_format_buttons()
-
-    def _make_checkbox_format(self, checked: bool) -> QTextImageFormat:
-        """폭은 패딩 포함 캔버스 폭이라 가시 글리프가 다른 글머리와 수평 정렬된다."""
-        fmt = QTextImageFormat()
-        fmt.setName(checkbox_url(checked))
-        fmt.setWidth(float(CHECKBOX_WIDTH))
-        fmt.setHeight(float(CHECKBOX_HEIGHT))
-        fmt.setVerticalAlignment(QTextCharFormat.AlignMiddle)
-        return fmt
+        self._apply_marker_to_selection(
+            MARKER_CHECK0,
+            is_member=lambda c: c in (MARKER_CHECK0, MARKER_CHECK1))
 
     def _remove_list_markers(self) -> None:
         if not self._edit_mode:
             return
         doc = self._text.document()
         positions = self._selected_block_positions()
-        for pos in reversed(positions):
-            block = doc.findBlock(pos)
-            self._strip_block_marker(block)
+        cursor = self._text.textCursor()
+        cursor.beginEditBlock()
+        try:
+            for pos in positions:
+                self._set_block_marker(doc.findBlock(pos), MARKER_NONE)
+        finally:
+            cursor.endEditBlock()
         self._refresh_format_buttons()
 
     def _try_toggle_checkbox_at(self, pos: QPoint) -> bool:
-        """클릭한 줄 앞에 체크박스가 있어 실제로 토글했을 때만 True 를 반환한다."""
+        """체크박스 줄의 왼쪽 여백(마커 영역)을 클릭하면 토글하고 True 를
+        반환한다."""
         if not self._edit_mode:
             return False
-        cursor = self._text.cursorForPosition(pos)
-        block = cursor.block()
-        col = cursor.position() - block.position()
-        if col > 1:
+        block = self._text.cursorForPosition(pos).block()
+        code = self._marker_code(block)
+        if code not in (MARKER_CHECK0, MARKER_CHECK1):
             return False
-        kind, _length, _url = self._block_marker_info(block)
-        if kind not in ("checkbox_empty", "checkbox_checked"):
+        start = QTextCursor(block)
+        start.setPosition(block.position())
+        if pos.x() >= self._text.cursorRect(start).left():
             return False
-        it = block.begin()
-        if it.atEnd():
-            return False
-        frag = it.fragment()
-        if not frag.charFormat().isImageFormat():
-            return False
-        will_be_checked = (kind == "checkbox_empty")
+        will_check = code == MARKER_CHECK0
+        new_code = MARKER_CHECK1 if will_check else MARKER_CHECK0
         doc = self._text.document()
         bc = QTextCursor(doc)
         # Ctrl+Z 가 토글과 이동을 함께 되돌리도록 한 undo 단계로 묶는다.
         bc.beginEditBlock()
         try:
-            bc.setPosition(frag.position())
-            bc.setPosition(frag.position() + frag.length(),
-                           QTextCursor.KeepAnchor)
-            bc.removeSelectedText()
-            bc.insertImage(self._make_checkbox_format(will_be_checked))
-            if will_be_checked and self._move_checked_to_bottom_enabled():
-                refreshed = doc.findBlock(block.position())
-                self._move_block_to_end(refreshed)
+            self._set_block_marker(block, new_code)
+            if will_check and self._move_checked_to_bottom_enabled():
+                self._move_block_to_end(doc.findBlock(block.position()))
         finally:
             bc.endEditBlock()
         return True
@@ -991,6 +1104,7 @@ class StickyNoteWidget(QWidget):
         doc = self._text.document()
         if not block.isValid() or not block.next().isValid():
             return
+        code = self._marker_code(block)
         snap = QTextCursor(doc)
         snap.setPosition(block.position())
         snap.movePosition(QTextCursor.EndOfBlock, QTextCursor.KeepAnchor)
@@ -1005,6 +1119,7 @@ class StickyNoteWidget(QWidget):
         end.movePosition(QTextCursor.End)
         end.insertBlock()
         end.insertFragment(fragment)
+        self._set_block_marker(end.block(), code)
         # 다음 키 입력이 방금 체크한 줄의 편집을 이어가도록 커서를 옮긴다.
         self._text.setTextCursor(end)
 
@@ -1016,22 +1131,34 @@ class StickyNoteWidget(QWidget):
         self._italic_btn.setChecked(current.fontItalic())
         self._underline_btn.setChecked(current.fontUnderline())
         self._strike_btn.setChecked(current.fontStrikeOut())
-        self._list_btn.setChecked(self._text.textCursor().currentList() is not None)
+        self._list_btn.setChecked(
+            self._marker_code(self._text.textCursor().block()) in MARKER_CODES)
 
     def _attach_image(self) -> None:
         if not self._edit_mode:
             self._request_edit()
             return
-        path, _ = QFileDialog.getOpenFileName(
-            self, i18n.t("sticky.img_dialog_title"), "",
-            i18n.t("sticky.img_filter"))
-        if not path:
-            return
-        # QImage 경로는 첫 프레임만 캡처하므로, 애니메이션 보존을 위해
-        # 경로 기반 inserter 로 라우팅한다.
-        self._text._insert_image_from_path(path)
+        self._opening_dialog = True
+        try:
+            path, _ = QFileDialog.getOpenFileName(
+                self, i18n.t("sticky.img_dialog_title"), "",
+                i18n.t("sticky.img_filter"))
+            if path:
+                self._text.setFocus(Qt.OtherFocusReason)
+                # QImage 경로는 첫 프레임만 캡처하므로, 애니메이션 보존을
+                # 위해 경로 기반 inserter 로 라우팅한다.
+                self._text._insert_image_from_path(path)
+        finally:
+            # 네이티브 대화상자가 닫히며 늦게 전달되는 비활성화 이벤트까지
+            # 가드가 살아 있도록 이벤트 루프를 한 번 돌린 뒤 해제한다.
+            QTimer.singleShot(0, self._end_opening_dialog)
+
+    def _end_opening_dialog(self) -> None:
+        self._opening_dialog = False
 
     def eventFilter(self, obj, event) -> bool:
+        if obj is self._grip and event.type() == QEvent.MouseButtonRelease:
+            self.sizeChanged.emit(self.note_id, self.width(), self.height())
         if obj is self._text.viewport() and event.type() == QEvent.MouseButtonPress:
             if not self._edit_mode:
                 self._request_edit()
@@ -1055,45 +1182,31 @@ class StickyNoteWidget(QWidget):
         return super().eventFilter(obj, event)
 
     def _handle_marker_enter(self) -> bool:
-        """마커 뒤가 비어 있으면 마커를 제거하고, 아니면 블록을 분할해
-        새 줄에 같은 마커를 잇는다. 처리했으면 True(호출자는 이벤트를
-        삼켜야 한다), 기본 Enter 에 맡기면 False 를 반환한다."""
+        """마커만 있는 빈 줄에서 Enter 면 마커를 없애 리스트를 끝낸다.
+        체크박스는 다음 줄을 '미체크'로 잇는다. 글머리는 기본 Enter 가 새 블록
+        에 마커 서식을 상속해 자연히 이어지므로 False 를 돌려준다."""
         cursor = self._text.textCursor()
         if cursor.hasSelection():
             return False
         block = cursor.block()
-        kind, length, url = self._block_marker_info(block)
-        if kind is None:
+        code = self._marker_code(block)
+        if code not in MARKER_CODES:
             return False
-        col = cursor.position() - block.position()
-        if col < length:
-            # 커서가 마커 안/앞이면 기본 분할에 맡겨 글머리 줄 위에
-            # 빈 줄을 추가할 수 있게 한다.
-            return False
-        text = block.text()
-        if not text[length:].strip():
-            cursor.beginEditBlock()
-            try:
-                self._strip_block_marker(block)
-            finally:
-                cursor.endEditBlock()
+        if not block.text().strip():
+            self._set_block_marker(block, MARKER_NONE)
             self._refresh_format_buttons()
             return True
-        # undo 가 분할과 마커 삽입을 원자적으로 되돌리도록 한 edit-block 으로 묶는다.
-        cursor.beginEditBlock()
-        try:
-            cursor.insertBlock()
-            if kind == "bullet":
-                cursor.insertImage(self._make_bullet_format(url))
-            else:
-                cursor.insertImage(self._make_checkbox_format(False))
-            if length > 1:
-                cursor.insertText(" " * (length - 1))
-        finally:
-            cursor.endEditBlock()
-        self._text.setTextCursor(cursor)
-        self._refresh_format_buttons()
-        return True
+        if code in (MARKER_CHECK0, MARKER_CHECK1):
+            cursor.beginEditBlock()
+            try:
+                cursor.insertBlock()
+                self._set_block_marker(cursor.block(), MARKER_CHECK0)
+            finally:
+                cursor.endEditBlock()
+            self._text.setTextCursor(cursor)
+            self._refresh_format_buttons()
+            return True
+        return False
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.LeftButton and self._on_handle_bar(event.pos()):
@@ -1123,7 +1236,8 @@ class StickyNoteWidget(QWidget):
 
     def changeEvent(self, event) -> None:
         if (event.type() == QEvent.ActivationChange
-                and self._edit_mode and not self.isActiveWindow()):
+                and self._edit_mode and not self.isActiveWindow()
+                and not self._opening_dialog):
             self._commit_and_release()
         super().changeEvent(event)
 

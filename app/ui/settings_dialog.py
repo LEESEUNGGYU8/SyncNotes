@@ -368,6 +368,10 @@ class SettingsDialog(QDialog):
         title = QLabel(config.APP_NAME)
         title.setStyleSheet("font-size: 18px; font-weight: 800; color: #1F1F1F;")
         v.addWidget(title)
+        version = QLabel(
+            i18n.t("settings.about_version", version=config.APP_VERSION))
+        version.setProperty("role", "subtle")
+        v.addWidget(version)
         desc = QLabel(i18n.t("settings.about_description"))
         desc.setWordWrap(True)
         v.addWidget(desc)

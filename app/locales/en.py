@@ -82,6 +82,8 @@ STRINGS = {
     "sticky.tip_italic": "Italic (Ctrl+I)",
     "sticky.tip_underline": "Underline (Ctrl+U)",
     "sticky.tip_strike": "Strikethrough (Ctrl+Shift+S)",
+    "sticky.tip_font_color": "Text color",
+    "sticky.font_color_default": "Default color",
     "sticky.tip_highlight": "Highlight (Ctrl+Shift+H)",
     "sticky.tip_list": "List (Ctrl+Shift+L)",
     "sticky.tip_image": "Attach image",
@@ -159,6 +161,7 @@ STRINGS = {
     "settings.note_backup_guest": "Backups only run while running as host. This setting applies the next time you start as host.",
     "settings.dialog_pick_backup_dir": "Choose backup folder",
     "settings.about_description": "A desktop sticky-note app that syncs in real time over your local network.",
+    "settings.about_version": "Version {version}",
     "settings.about_credit": "Made by: 이승규 (LEESEUNGYU8)\nFont: Pretendard © Kil Hyung-jin (OFL License).",
 
     # ── Edit history (history_viewer.py) ──
@@ -170,6 +173,8 @@ STRINGS = {
     "history.section_body": "Body changes",
     "history.btn_restore": "Restore to this point",
     "history.no_body_change": "(no body change)",
+    "history.image_added": "{n} image(s) added",
+    "history.image_removed": "{n} image(s) removed",
     "history.action_create": "Created",
     "history.action_update": "Updated",
     "history.action_delete": "Deleted",

@@ -26,6 +26,7 @@ from PySide6.QtGui import (
     QPixmap,
     QTextCursor,
     QTextDocument,
+    QTextFormat,
     QTextImageFormat,
 )
 from PySide6.QtWidgets import QLabel, QTextEdit
@@ -299,6 +300,61 @@ def checkbox_qicon(checked: bool) -> QIcon:
     cropped = img.copy(CHECKBOX_LEFT_PAD, 0,
                        img.width() - CHECKBOX_LEFT_PAD, img.height())
     return QIcon(QPixmap.fromImage(cropped))
+
+
+# 마커는 블록 포맷의 커스텀 속성에 코드로 저장하고, 글리프는 paintEvent 가
+# 왼쪽 여백에 직접 그린다. 텍스트에 마커 문자를 넣지 않으므로 공백 없는 CJK
+# 줄도 글머리 뒤에서 끊기지 않고, 줄바꿈된 줄이 본문에 정렬된다. 블록 포맷에
+# 두면 undo 로 되돌릴 수 있고, 줄 분할 시 여백과 함께 상속돼 리스트가 자연히
+# 이어진다.
+MARKER_PROP = QTextFormat.UserProperty + 1
+MARKER_NONE = 0
+MARKER_CIRCLE = 1
+MARKER_SQUARE = 2
+MARKER_ARROW = 3
+MARKER_INFO = 4
+MARKER_CHECK0 = 5
+MARKER_CHECK1 = 6
+MARKER_CODES = frozenset({1, 2, 3, 4, 5, 6})
+BULLET_CODES = frozenset({1, 2, 3, 4})
+MARKER_MARGIN = float(CHECKBOX_WIDTH + 7)
+
+_CODE_TO_BULLET = {
+    MARKER_CIRCLE: BULLET_CIRCLE, MARKER_SQUARE: BULLET_SQUARE,
+    MARKER_ARROW: BULLET_ARROW, MARKER_INFO: BULLET_INFO,
+}
+_BULLET_TO_CODE = {v: k for k, v in _CODE_TO_BULLET.items()}
+
+
+def marker_glyph(code: int):
+    if code in _CODE_TO_BULLET:
+        return bullet_image(_CODE_TO_BULLET[code])
+    if code == MARKER_CHECK0:
+        return checkbox_image(False)
+    if code == MARKER_CHECK1:
+        return checkbox_image(True)
+    return None
+
+
+def marker_url_for_code(code: int) -> str | None:
+    if code in _CODE_TO_BULLET:
+        return bullet_url_for(_CODE_TO_BULLET[code])
+    if code == MARKER_CHECK0:
+        return checkbox_url(False)
+    if code == MARKER_CHECK1:
+        return checkbox_url(True)
+    return None
+
+
+def marker_code_for_url(url: str) -> int:
+    name = url_to_bullet_name(url)
+    if name is not None:
+        return _BULLET_TO_CODE.get(name, MARKER_NONE)
+    if url == checkbox_url(False):
+        return MARKER_CHECK0
+    if url == checkbox_url(True):
+        return MARKER_CHECK1
+    return MARKER_NONE
 
 
 def has_non_marker_image(html: str) -> bool:
@@ -638,7 +694,36 @@ class RichTextEdit(QTextEdit):
         super().setHtml(html)
         # setHtml 이 리소스 캐시를 비우므로 글머리 PNG 를 다시 등록한다.
         register_bullet_resources(self.document())
+        # setHtml 은 data: 이미지를 리소스로 디코드하지 않아, 디코드를 미리
+        # 해 두지 않으면 첫 paint 전까지 빈 칸으로 보인다.
+        self._restore_image_resources()
         self._register_animated_in_document()
+
+    def _restore_image_resources(self) -> None:
+        doc = self.document()
+        if doc.isEmpty():
+            return
+        block = doc.begin()
+        while block.isValid():
+            it = block.begin()
+            while not it.atEnd():
+                frag = it.fragment()
+                if frag.isValid() and frag.charFormat().isImageFormat():
+                    name = frag.charFormat().toImageFormat().name()
+                    if name.startswith("data:"):
+                        existing = doc.resource(
+                            QTextDocument.ImageResource, QUrl(name))
+                        if not isinstance(existing, QImage) or existing.isNull():
+                            ba = _data_url_payload(name)
+                            if not ba.isEmpty():
+                                img = QImage()
+                                img.loadFromData(ba)
+                                if not img.isNull():
+                                    doc.addResource(
+                                        QTextDocument.ImageResource,
+                                        QUrl(name), img)
+                it += 1
+            block = block.next()
 
     def _register_animated_in_document(self) -> None:
         doc = self.document()
@@ -755,12 +840,40 @@ class RichTextEdit(QTextEdit):
         cur.setPosition(position)
         cur.setPosition(position + added, QTextCursor.KeepAnchor)
         fmt = cur.charFormat()
-        if fmt.isImageFormat() or "￼" in cur.selection().toPlainText():
+        # 표시 전 setHtml 로 이미지가 들어오면 뷰포트 폭이 작아 과하게
+        # 줄어들므로, 표시된 동안의 삽입에서만 맞춘다.
+        if ((fmt.isImageFormat() or "￼" in cur.selection().toPlainText())
+                and self.isVisible()):
             self.fit_images_to_viewport()
 
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
-        self.fit_images_to_viewport()
+        # 표시 전에는 뷰포트 폭이 확정되지 않아 이미지를 과하게 줄인다.
+        # 표시된 뒤의 resize 에서만 맞춘다.
+        if self.isVisible():
+            self.fit_images_to_viewport()
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        super().paintEvent(event)
+        doc = self.document()
+        block = doc.begin()
+        painter = None
+        while block.isValid():
+            code = block.blockFormat().intProperty(MARKER_PROP)
+            if code in MARKER_CODES:
+                glyph = marker_glyph(code)
+                if glyph is not None and not glyph.isNull():
+                    cursor = QTextCursor(block)
+                    cursor.setPosition(block.position())
+                    r = self.cursorRect(cursor)
+                    if painter is None:
+                        painter = QPainter(self.viewport())
+                    gx = r.left() - MARKER_MARGIN
+                    gy = r.top() + (r.height() - glyph.height()) / 2.0
+                    painter.drawImage(int(round(gx)), int(round(gy)), glyph)
+            block = block.next()
+        if painter is not None:
+            painter.end()
 
     def wheelEvent(self, event) -> None:  # noqa: N802
         if self.isReadOnly():

@@ -82,6 +82,8 @@ STRINGS = {
     "sticky.tip_italic": "斜体 (Ctrl+I)",
     "sticky.tip_underline": "下線 (Ctrl+U)",
     "sticky.tip_strike": "取り消し線 (Ctrl+Shift+S)",
+    "sticky.tip_font_color": "文字色",
+    "sticky.font_color_default": "既定の色",
     "sticky.tip_highlight": "背景色 (Ctrl+Shift+H)",
     "sticky.tip_list": "リスト (Ctrl+Shift+L)",
     "sticky.tip_image": "画像を添付",
@@ -159,6 +161,7 @@ STRINGS = {
     "settings.note_backup_guest": "バックアップ機能はホストとして実行中のときのみ動作します。この設定は次回ホストとして開始するときに適用されます。",
     "settings.dialog_pick_backup_dir": "バックアップフォルダーを選択",
     "settings.about_description": "ローカルネットワーク上でリアルタイムに同期するデスクトップ付箋アプリ。",
+    "settings.about_version": "バージョン {version}",
     "settings.about_credit": "制作: 이승규 (LEESEUNGYU8)\nフォント: Pretendard © Kil Hyung-jin (OFL License).",
 
     # ── 編集履歴 (history_viewer.py) ──
@@ -170,6 +173,8 @@ STRINGS = {
     "history.section_body": "本文の変更",
     "history.btn_restore": "この時点に戻す",
     "history.no_body_change": "(本文の変更なし)",
+    "history.image_added": "画像を {n} 件追加",
+    "history.image_removed": "画像を {n} 件削除",
     "history.action_create": "作成",
     "history.action_update": "編集",
     "history.action_delete": "削除",

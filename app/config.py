@@ -3,7 +3,7 @@ from pathlib import Path
 
 APP_NAME = "SyncNotes"
 # 앱 버전의 단일 출처. 자동 업데이트가 이 값을 GitHub 릴리스 태그와 비교한다.
-APP_VERSION = "1.0.4"
+APP_VERSION = "1.0.5"
 
 # 포크해서 다른 곳에 배포하려면 이 두 값만 바꾼다.
 UPDATE_REPO_OWNER = "LEESEUNGGYU8"

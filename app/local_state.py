@@ -14,6 +14,8 @@ class NoteLocalState:
     x: int = 120
     y: int = 120
     hidden: bool = False
+    w: int = 0   # 0 이면 서버에 저장된 기본 크기를 쓴다.
+    h: int = 0
 
 
 @dataclass
@@ -45,7 +47,7 @@ class LocalState:
 
     def set_note_state(
         self, note_id: str, x: int | None = None, y: int | None = None,
-        hidden: bool | None = None,
+        hidden: bool | None = None, w: int | None = None, h: int | None = None,
     ) -> NoteLocalState:
         state = self.get_note_state(note_id)
         if x is not None:
@@ -54,6 +56,10 @@ class LocalState:
             state.y = y
         if hidden is not None:
             state.hidden = hidden
+        if w is not None:
+            state.w = w
+        if h is not None:
+            state.h = h
         return state
 
     def remove_note(self, note_id: str) -> None:

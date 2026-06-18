@@ -88,6 +88,8 @@ STRINGS = {
     "sticky.tip_italic": "기울임 (Ctrl+I)",
     "sticky.tip_underline": "밑줄 (Ctrl+U)",
     "sticky.tip_strike": "취소선 (Ctrl+Shift+S)",
+    "sticky.tip_font_color": "글자 색",
+    "sticky.font_color_default": "기본 색",
     "sticky.tip_highlight": "배경색 (Ctrl+Shift+H)",
     "sticky.tip_list": "목록 (Ctrl+Shift+L)",
     "sticky.tip_image": "이미지 첨부",
@@ -165,6 +167,7 @@ STRINGS = {
     "settings.note_backup_guest": "백업 기능은 호스트로 실행 중일 때만 동작합니다. 이 설정은 다음에 호스트로 시작할 때 적용됩니다.",
     "settings.dialog_pick_backup_dir": "백업 폴더 선택",
     "settings.about_description": "로컬 네트워크에서 실시간으로 동기화되는 데스크톱 포스트잇 프로그램.",
+    "settings.about_version": "버전 {version}",
     "settings.about_credit": "제작: 이승규 (LEESEUNGYU8)\n글꼴: Pretendard © Kil Hyung-jin (OFL License).",
 
     # ── 수정 이력 (history_viewer.py) ──
@@ -176,6 +179,8 @@ STRINGS = {
     "history.section_body": "본문 변경",
     "history.btn_restore": "이 시점으로 되돌리기",
     "history.no_body_change": "(본문 변경 없음)",
+    "history.image_added": "이미지 {n}개 추가됨",
+    "history.image_removed": "이미지 {n}개 제거됨",
     "history.action_create": "생성",
     "history.action_update": "수정",
     "history.action_delete": "삭제",

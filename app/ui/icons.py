@@ -89,10 +89,18 @@ _SVG = {
     ),
     "highlight": (
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-        '<path d="M7 15L12 5l5 10M9 12h6" stroke="{color}" stroke-width="2" '
-        'stroke-linecap="round" stroke-linejoin="round" fill="none"/>'
-        '<path d="M5 20h14" stroke="{color}" stroke-width="3" '
+        '<path d="M10 14l6.5-6.5 3 3L13 17H10v-3z" stroke="{color}" '
+        'stroke-width="1.9" fill="none" stroke-linejoin="round"/>'
+        '<path d="M15 6.5l2.5-2.5 3 3-2.5 2.5" stroke="{color}" '
+        'stroke-width="1.9" fill="none" stroke-linejoin="round"/>'
+        '<path d="M5 20.5h8" stroke="{color}" stroke-width="3" '
         'stroke-linecap="round"/></svg>'
+    ),
+    "text_color": (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+        '<path d="M11 4h2l5.4 13h-2.5l-1.3-3.3H9.4L8.1 17H5.6L11 4z'
+        'M10.15 11.6h3.7L12 7l-1.85 4.6z" fill="{color}" fill-rule="evenodd"/>'
+        '<rect x="5" y="19.2" width="14" height="2.6" rx="1.3" fill="{color}"/></svg>'
     ),
     "image": (
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
