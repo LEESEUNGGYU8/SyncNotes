@@ -8,6 +8,10 @@ from pathlib import Path
 
 from . import config
 
+IMAGE_VIEWER_BUILTIN = "builtin"
+IMAGE_VIEWER_SYSTEM = "system"
+IMAGE_VIEWER_CHOICES = (IMAGE_VIEWER_BUILTIN, IMAGE_VIEWER_SYSTEM)
+
 
 @dataclass
 class AppSettings:
@@ -19,6 +23,10 @@ class AppSettings:
     close_main_to_tray: bool = True
 
     move_checked_to_bottom: bool = False
+
+    # 메모 안 이미지를 더블 클릭했을 때 여는 방법.
+    # "builtin" = 앱 자체 이미지 뷰어, "system" = OS 기본 이미지 뷰어(임시 파일 경유).
+    image_viewer: str = IMAGE_VIEWER_BUILTIN
 
     autostart: bool = False
 
@@ -39,9 +47,13 @@ class AppSettings:
         try:
             raw = json.loads(p.read_text(encoding="utf-8"))
             known = {k: raw[k] for k in cls.__dataclass_fields__ if k in raw}
-            return cls(**known)
+            loaded = cls(**known)
         except (json.JSONDecodeError, TypeError, ValueError):
             return cls()
+        # 손으로 고친 설정 파일의 모르는 값은 기본값으로 되돌린다.
+        if loaded.image_viewer not in IMAGE_VIEWER_CHOICES:
+            loaded.image_viewer = IMAGE_VIEWER_BUILTIN
+        return loaded
 
     def save(self, path: Path | None = None) -> None:
         p = path or config.default_settings_path()

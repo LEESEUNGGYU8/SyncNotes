@@ -23,7 +23,13 @@ from PySide6.QtWidgets import (
 )
 
 from .. import config, i18n
-from ..settings import AppSettings, get_windows_autostart, set_windows_autostart
+from ..settings import (
+    IMAGE_VIEWER_BUILTIN,
+    IMAGE_VIEWER_SYSTEM,
+    AppSettings,
+    get_windows_autostart,
+    set_windows_autostart,
+)
 from .icons import color_swatch_icon, svg_icon
 from .theme import refresh_style
 
@@ -207,6 +213,20 @@ class SettingsDialog(QDialog):
         note.setProperty("role", "subtle")
         note.setWordWrap(True)
         form.addRow("", note)
+
+        self._image_viewer = QComboBox()
+        self._image_viewer.addItem(i18n.t("settings.image_viewer_builtin"),
+                                   userData=IMAGE_VIEWER_BUILTIN)
+        self._image_viewer.addItem(i18n.t("settings.image_viewer_system"),
+                                   userData=IMAGE_VIEWER_SYSTEM)
+        idx = self._image_viewer.findData(self._settings.image_viewer)
+        self._image_viewer.setCurrentIndex(idx if idx >= 0 else 0)
+        form.addRow(i18n.t("settings.label_image_viewer"), self._image_viewer)
+
+        viewer_note = QLabel(i18n.t("settings.note_image_viewer"))
+        viewer_note.setProperty("role", "subtle")
+        viewer_note.setWordWrap(True)
+        form.addRow("", viewer_note)
         _align_form_labels(form)
         return w
 
@@ -399,6 +419,7 @@ class SettingsDialog(QDialog):
         s.close_main_to_tray = self._close_to_tray.isChecked()
 
         s.move_checked_to_bottom = self._move_checked_to_bottom.isChecked()
+        s.image_viewer = self._image_viewer.currentData() or IMAGE_VIEWER_BUILTIN
 
         s.autostart = self._autostart.isChecked()
         if self._autostart.isEnabled():

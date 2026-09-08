@@ -87,7 +87,7 @@ STRINGS = {
     "sticky.tip_highlight": "背景色 (Ctrl+Shift+H)",
     "sticky.tip_list": "リスト (Ctrl+Shift+L)",
     "sticky.tip_image": "画像を添付",
-    "sticky.tip_image_full": "画像を添付 (貼り付け・ドラッグも可能)\n本文をドラッグした状態で Ctrl+マウスホイールで文字サイズを調整",
+    "sticky.tip_image_full": "画像を添付 (貼り付け・ドラッグも可能)\n本文をドラッグした状態で Ctrl+マウスホイールで文字サイズを調整\n画像をダブルクリックすると大きく表示できます",
     "sticky.private_icon_tip": "自分のみ表示 — 他のユーザーには表示されません。",
     "sticky.menu_circle": "丸",
     "sticky.menu_square": "四角",
@@ -105,6 +105,18 @@ STRINGS = {
     "sticky.lock_overlay": "{holder} が編集中です",
     "sticky.img_dialog_title": "画像を選択",
     "sticky.img_filter": "画像ファイル (*.png *.jpg *.jpeg *.gif *.bmp *.webp *.apng)",
+
+    # ── 画像ビューアー (image_viewer.py) ──
+    "imgview.window_title": "画像を表示",
+    "imgview.window_title_n": "画像を表示 ({index}/{total})",
+    "imgview.counter": "{index} / {total}",
+    "imgview.zoom": "{percent}%",
+    "imgview.tip_prev": "前の画像 (←)",
+    "imgview.tip_next": "次の画像 (→)",
+    "imgview.tip_fit": "ウィンドウに合わせる (0)",
+    "imgview.tip_actual": "実際のサイズ (1)",
+    "imgview.tip_wheel": "マウスホイールで拡大・縮小、ドラッグで移動",
+    "imgview.load_failed": "画像を読み込めません。",
 
     # ── 参加者ダイアログ (sessions_dialog.py) ──
     "sessions.window_title": "参加者",
@@ -142,6 +154,10 @@ STRINGS = {
     "settings.check_close_to_tray": "メインウィンドウを閉じたときトレイに最小化",
     "settings.check_move_checked_to_bottom": "チェックを入れた文をいちばん下に移動",
     "settings.note_move_checked_to_bottom": "オンにすると、チェックボックスの項目にチェックを入れるたびに、その行がメモのいちばん下に移動します。",
+    "settings.label_image_viewer": "画像のダブルクリック",
+    "settings.image_viewer_builtin": "内蔵の画像ビューアーで開く",
+    "settings.image_viewer_system": "Windows 標準の画像ビューアーで開く",
+    "settings.note_image_viewer": "メモ内の画像をダブルクリックしたときの開き方です。Windows 標準の画像ビューアーを選ぶと、画像を一時ファイルに保存してフォトなどの関連付けられたアプリで開きます。開けない場合は内蔵ビューアーで開きます。",
     "settings.check_autostart": "Windows 起動時に自動実行",
     "settings.note_autostart_hint": "自動実行は現在のユーザーアカウントにのみ適用されます。",
     "settings.note_autostart_unsupported": "Windows 以外のプラットフォームではこのオプションは適用されません。",

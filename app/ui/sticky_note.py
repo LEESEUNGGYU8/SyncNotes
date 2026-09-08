@@ -40,7 +40,10 @@ from PySide6.QtWidgets import (
 )
 
 from .. import config, i18n
+from ..image_export import open_data_url_externally
+from ..settings import IMAGE_VIEWER_SYSTEM
 from .icons import color_swatch_icon, svg_icon
+from .image_viewer import ImageViewerWindow
 from .menu_item import add_centered_menu_action
 from .rich_text import (
     BULLET_ARROW,
@@ -390,6 +393,11 @@ class StickyNoteWidget(QWidget):
         # 편집을 조기 커밋해 이후 삽입된 이미지가 세션 밖에서 처리되지
         # 않도록 막는 플래그.
         self._opening_dialog = False
+        # 이미지 더블 클릭으로 연 자체 뷰어. 메모당 하나만 두고 재사용한다.
+        self._image_viewer: ImageViewerWindow | None = None
+        # 더블 클릭의 첫 클릭이 낸 잠금 요청이 아직 응답 전(게스트의 왕복 지연)에
+        # 뷰어가 열렸으면, 뒤늦게 온 허용은 편집으로 들어가지 않고 바로 돌려준다.
+        self._abandon_grant = False
 
         # 미완료 편집이 크래시나 강제 종료에서 살아남도록 주기적으로 저장한다.
         self._autosave_timer = QTimer(self)
@@ -555,6 +563,12 @@ class StickyNoteWidget(QWidget):
 
     def enter_edit_mode(self) -> None:
         self._pending_lock = False
+        if self._abandon_grant:
+            # 이미지 뷰어를 여는 사이에 허용이 도착했다. 변경 없이 잠금만 돌려주므로
+            # 서버는 이력 행을 남기지 않는다(변경 없는 편집 종료와 같은 경로).
+            self._abandon_grant = False
+            self.releaseLock.emit(self.note_id)
+            return
         self._edit_mode = True
         self._text.setReadOnly(False)
         self._text.setFocus(Qt.OtherFocusReason)
@@ -573,6 +587,7 @@ class StickyNoteWidget(QWidget):
 
     def show_lock_denied(self, holder: str) -> None:
         self._pending_lock = False
+        self._abandon_grant = False
         self._text.setReadOnly(True)
         self._lock_label.setText(i18n.t("sticky.lock_editing_by", holder=holder))
         self._show_overlay(i18n.t("sticky.lock_overlay", holder=holder))
@@ -622,6 +637,8 @@ class StickyNoteWidget(QWidget):
 
     def _request_edit(self) -> None:
         if self._edit_mode or self._pending_lock:
+            # 뷰어를 연 뒤 응답이 오기 전에 다시 눌렀다면 편집하려는 뜻이다.
+            self._abandon_grant = False
             return
         if self._lock_holder and self._lock_holder != self._my_nickname:
             return
@@ -1159,6 +1176,18 @@ class StickyNoteWidget(QWidget):
     def eventFilter(self, obj, event) -> bool:
         if obj is self._grip and event.type() == QEvent.MouseButtonRelease:
             self.sizeChanged.emit(self.note_id, self.width(), self.height())
+        # 본문 이미지 더블 클릭은 보기/편집 상태와 무관하게 뷰어를 연다.
+        # 첫 클릭이 편집 요청을 냈더라도 뷰어 창이 초점을 가져가면 changeEvent
+        # 가 편집을 커밋하고 잠금을 풀어 메모는 곧 보기 상태로 돌아간다.
+        if (obj is self._text.viewport()
+                and event.type() == QEvent.MouseButtonDblClick
+                and event.button() == Qt.LeftButton):
+            hit = self._text.content_image_at(event.pos())
+            if hit is not None:
+                url, ordinal = hit
+                self._open_image_viewer(url, ordinal)
+                event.accept()
+                return True
         if obj is self._text.viewport() and event.type() == QEvent.MouseButtonPress:
             if not self._edit_mode:
                 self._request_edit()
@@ -1180,6 +1209,38 @@ class StickyNoteWidget(QWidget):
                 if self._handle_marker_enter():
                     return True
         return super().eventFilter(obj, event)
+
+    def _open_image_viewer(self, url: str, ordinal: int) -> None:
+        """설정에 따라 OS 기본 뷰어(임시 파일 경유) 또는 자체 뷰어로 연다.
+        OS 뷰어를 열지 못하면 자체 뷰어로 물러선다."""
+        # 뷰어(외부 앱 포함)가 초점을 가져가면 어차피 changeEvent 가 편집을
+        # 커밋하지만, 활성화 순서에 기대지 않고 여기서 먼저 끝내 잠금을 오래
+        # 붙들지 않는다. 변경이 없으면 서버에 아무것도 보내지 않는다.
+        if self._edit_mode:
+            self._commit_and_release()
+        elif self._pending_lock:
+            self._abandon_grant = True
+        mode = (getattr(self._settings, "image_viewer", "")
+                if self._settings is not None else "")
+        if mode == IMAGE_VIEWER_SYSTEM and open_data_url_externally(url):
+            return
+        urls = self._text.content_image_urls()
+        if not urls:
+            urls = [url]
+        if not (0 <= ordinal < len(urls)) or urls[ordinal] != url:
+            ordinal = urls.index(url) if url in urls else 0
+        viewer = self._image_viewer
+        if viewer is None:
+            viewer = ImageViewerWindow()
+            viewer.destroyed.connect(self._on_image_viewer_destroyed)
+            # 메모가 삭제·재구성되어 파괴되면 그 이미지를 보던 창도 닫는다.
+            self.destroyed.connect(viewer.close)
+            self._image_viewer = viewer
+        viewer.set_images(urls, ordinal)
+        viewer.present(self.screen())
+
+    def _on_image_viewer_destroyed(self, *_args) -> None:
+        self._image_viewer = None
 
     def _handle_marker_enter(self) -> bool:
         """마커만 있는 빈 줄에서 Enter 면 마커를 없애 리스트를 끝낸다.

@@ -8,6 +8,7 @@ from PySide6.QtCore import (
     QIODevice,
     QObject,
     QPointF,
+    QRect,
     QRectF,
     QTimer,
     QUrl,
@@ -62,6 +63,21 @@ def _data_url_format_hint(data_url: str) -> str:
     if subtype == "apng":
         return "PNG"
     return subtype.upper()
+
+
+def data_url_payload(data_url: str) -> QByteArray:
+    """``data:`` URL 의 base64 본문을 바이트로 돌려준다. 아니면 빈 배열."""
+    return _data_url_payload(data_url)
+
+
+def data_url_image(data_url: str) -> QImage:
+    """data URL 을 원본 해상도 QImage 로 디코드한다(애니메이션은 첫 프레임).
+    실패하면 null 이미지."""
+    img = QImage()
+    ba = _data_url_payload(data_url)
+    if not ba.isEmpty():
+        img.loadFromData(ba)
+    return img
 
 
 def is_animated_data_url(data_url: str) -> bool:
@@ -491,6 +507,22 @@ class RichTextEdit(QTextEdit):
         self.document().contentsChange.connect(self._on_contents_change)
         register_bullet_resources(self.document())
 
+        # 본문 이미지의 원본 크기와 애니메이션 여부(URL → (w, h, animated)).
+        # 헤더만 읽어 채우므로 전체 디코드가 없다.
+        self._img_meta: dict[str, tuple[int, int, bool]] = {}
+        # 문서에 등록해 둔 표시용 리소스의 픽셀 크기(URL → (w, h)). Qt 는 문서
+        # 안 이미지를 최근접 방식으로 줄여 그려 큰 원본을 그대로 두면 계단이
+        # 지므로, 표시 크기로 부드럽게 줄인 사본을 리소스로 넣는다. 저장 HTML
+        # 에는 원본 data URL 이 그대로 남아 데이터는 바뀌지 않는다.
+        self._display_res: dict[str, tuple[int, int]] = {}
+        # 표시용 사본을 만들 때 쓰는 원본 디코드 캐시. 크기 조절 드래그 동안만
+        # 살려 두고 곧 비워, 큰 원본이 메모(숨은 메모 포함)마다 상주하지 않게 한다.
+        self._full_cache: dict[str, QImage] = {}
+        self._full_cache_timer = QTimer(self)
+        self._full_cache_timer.setSingleShot(True)
+        self._full_cache_timer.setInterval(1500)
+        self._full_cache_timer.timeout.connect(self._full_cache.clear)
+
         self._size_popup = QLabel(self)
         self._size_popup.setAttribute(Qt.WA_TransparentForMouseEvents)
         self._size_popup.setAlignment(Qt.AlignCenter)
@@ -694,12 +726,20 @@ class RichTextEdit(QTextEdit):
         super().setHtml(html)
         # setHtml 이 리소스 캐시를 비우므로 글머리 PNG 를 다시 등록한다.
         register_bullet_resources(self.document())
+        # 표시용 리소스도 함께 사라졌으므로 등록 기록을 지운다.
+        self._display_res.clear()
         # setHtml 은 data: 이미지를 리소스로 디코드하지 않아, 디코드를 미리
         # 해 두지 않으면 첫 paint 전까지 빈 칸으로 보인다.
         self._restore_image_resources()
         self._register_animated_in_document()
 
     def _restore_image_resources(self) -> None:
+        """setHtml 뒤 첫 paint 전에 이미지 리소스를 채운다.
+
+        본문 이미지는 저장 HTML 에 적힌 표시 크기(width/height 속성)로 줄인
+        사본을 넣는다. 아직 표시 전이라 뷰포트 폭을 모르지만 저장된 표시 크기가
+        곧 마지막 표시 크기라 대체로 그대로 쓰이고, 표시되면 resizeEvent 의
+        fit 이 필요할 때만 다시 맞춘다."""
         doc = self.document()
         if doc.isEmpty():
             return
@@ -709,21 +749,101 @@ class RichTextEdit(QTextEdit):
             while not it.atEnd():
                 frag = it.fragment()
                 if frag.isValid() and frag.charFormat().isImageFormat():
-                    name = frag.charFormat().toImageFormat().name()
+                    img_fmt = frag.charFormat().toImageFormat()
+                    name = img_fmt.name()
                     if name.startswith("data:"):
-                        existing = doc.resource(
-                            QTextDocument.ImageResource, QUrl(name))
-                        if not isinstance(existing, QImage) or existing.isNull():
-                            ba = _data_url_payload(name)
-                            if not ba.isEmpty():
-                                img = QImage()
-                                img.loadFromData(ba)
-                                if not img.isNull():
-                                    doc.addResource(
-                                        QTextDocument.ImageResource,
-                                        QUrl(name), img)
+                        if is_marker_url(name):
+                            self._restore_marker_resource(doc, name)
+                        else:
+                            meta = self._image_meta(name)
+                            if meta is not None:
+                                w, h = img_fmt.width(), img_fmt.height()
+                                if w <= 0 or h <= 0:
+                                    w, h = meta[0], meta[1]
+                                self._set_display_resource(
+                                    name, int(round(w)), int(round(h)))
                 it += 1
             block = block.next()
+
+    def _restore_marker_resource(self, doc: QTextDocument, name: str) -> None:
+        existing = doc.resource(QTextDocument.ImageResource, QUrl(name))
+        if isinstance(existing, QImage) and not existing.isNull():
+            return
+        ba = _data_url_payload(name)
+        if ba.isEmpty():
+            return
+        img = QImage()
+        img.loadFromData(ba)
+        if not img.isNull():
+            doc.addResource(QTextDocument.ImageResource, QUrl(name), img)
+
+    def _image_meta(self, data_url: str) -> tuple[int, int, bool] | None:
+        """``(원본 폭, 원본 높이, 애니메이션 여부)``. 헤더만 읽어 캐시한다."""
+        cached = self._img_meta.get(data_url)
+        if cached is not None:
+            return cached
+        ba = _data_url_payload(data_url)
+        if ba.isEmpty():
+            return None
+        buf = QBuffer(ba)
+        buf.open(QIODevice.ReadOnly)
+        reader = QImageReader()
+        reader.setDecideFormatFromContent(True)
+        reader.setDevice(buf)
+        try:
+            if not reader.canRead():
+                return None
+            size = reader.size()
+            animated = reader.supportsAnimation() and reader.imageCount() > 1
+        finally:
+            buf.close()
+        if not size.isValid() or size.width() <= 0 or size.height() <= 0:
+            # 크기를 헤더에서 못 주는 형식이면 한 번 디코드한다.
+            img = QImage()
+            img.loadFromData(ba)
+            if img.isNull():
+                return None
+            size = img.size()
+        meta = (size.width(), size.height(), bool(animated))
+        self._img_meta[data_url] = meta
+        return meta
+
+    def _full_image(self, data_url: str) -> QImage | None:
+        img = self._full_cache.get(data_url)
+        if img is None:
+            img = data_url_image(data_url)
+            if img.isNull():
+                return None
+            self._full_cache[data_url] = img
+        self._full_cache_timer.start()
+        return img
+
+    def _set_display_resource(self, data_url: str, w: int, h: int) -> None:
+        """``data_url`` 이미지를 논리 크기 ``w x h`` 로 그릴 때 쓸 리소스를
+        등록한다. 원본보다 키우지 않고, 고해상도 화면에서는 배율만큼 더 큰
+        사본을 둔다. 애니메이션은 드라이버가 프레임을 넣으므로 건드리지 않는다."""
+        meta = self._image_meta(data_url)
+        if meta is None or w <= 0 or h <= 0:
+            return
+        ow, oh, animated = meta
+        if animated:
+            return
+        dpr = max(1.0, float(self.devicePixelRatioF()))
+        tw = max(1, min(ow, int(round(w * dpr))))
+        th = max(1, min(oh, int(round(h * dpr))))
+        if self._display_res.get(data_url) == (tw, th):
+            return
+        full = self._full_image(data_url)
+        if full is None:
+            return
+        if (tw, th) == (ow, oh):
+            img = full
+        else:
+            img = full.scaled(tw, th, Qt.IgnoreAspectRatio,
+                              Qt.SmoothTransformation)
+        self.document().addResource(
+            QTextDocument.ImageResource, QUrl(data_url), img)
+        self._display_res[data_url] = (tw, th)
 
     def _register_animated_in_document(self) -> None:
         doc = self.document()
@@ -746,6 +866,104 @@ class RichTextEdit(QTextEdit):
             block = block.next()
         self._anim.unregister_missing(current_urls)
 
+    def content_image_urls(self) -> list[str]:
+        """본문 이미지(글머리·체크박스 마커 제외)의 URL 을 문서 순서대로 돌려준다.
+
+        같은 이미지를 나란히 두 번 넣으면 Qt 가 한 조각으로 합치므로, 조각
+        하나가 아니라 조각 안의 글자 수만큼 센다."""
+        urls: list[str] = []
+        doc = self.document()
+        block = doc.begin()
+        while block.isValid():
+            it = block.begin()
+            while not it.atEnd():
+                frag = it.fragment()
+                if frag.isValid():
+                    fmt = frag.charFormat()
+                    if fmt.isImageFormat():
+                        name = fmt.toImageFormat().name()
+                        if name and not is_marker_url(name):
+                            urls.extend([name] * max(1, frag.length()))
+                it += 1
+            block = block.next()
+        return urls
+
+    def content_image_at(self, pos) -> tuple[str, int] | None:
+        """뷰포트 좌표 ``pos`` 위에 그려진 본문 이미지를 찾아 ``(URL, 본문
+        이미지 순번)`` 을 돌려준다. 이미지가 아니면 None.
+
+        ``cursorForPosition`` 은 클릭 지점에서 가장 가까운 문서 위치를 주므로
+        이미지 왼쪽 절반을 누르면 이미지 앞, 오른쪽 절반이면 뒤 위치가 온다.
+        두 이웃 글자를 모두 살피되, 그림이 실제로 차지하는 사각형 안일 때만
+        맞은 것으로 본다(이미지 옆 글자를 더블 클릭한 경우를 걸러 낸다)."""
+        doc = self.document()
+        if doc.isEmpty():
+            return None
+        anchor = self.cursorForPosition(pos).position()
+        for start in (anchor - 1, anchor):
+            if start < 0:
+                continue
+            block = doc.findBlock(start)
+            if not block.isValid():
+                continue
+            it = block.begin()
+            while not it.atEnd():
+                frag = it.fragment()
+                it += 1
+                if not frag.isValid() or not frag.contains(start):
+                    continue
+                fmt = frag.charFormat()
+                if not fmt.isImageFormat():
+                    break
+                img_fmt = fmt.toImageFormat()
+                name = img_fmt.name()
+                if not name or is_marker_url(name):
+                    break
+                rect = self._image_rect_at(start, img_fmt)
+                if rect is not None and rect.contains(pos):
+                    return name, self._image_ordinal(start)
+                break
+        return None
+
+    def _image_rect_at(self, position: int, img_fmt: QTextImageFormat):
+        """문서 위치 ``position`` 의 이미지 한 장이 뷰포트에서 차지하는 사각형."""
+        width = img_fmt.width()
+        if width <= 0:
+            meta = self._image_meta(img_fmt.name())
+            if meta is not None:
+                width = float(meta[0])
+        if width <= 0:
+            return None
+        cur = QTextCursor(self.document())
+        cur.setPosition(position)
+        line = self.cursorRect(cur)
+        return QRect(line.left(), line.top(),
+                     max(1, int(round(width))), max(1, line.height()))
+
+    def _image_ordinal(self, position: int) -> int:
+        """``position`` 의 이미지가 본문 이미지 목록에서 몇 번째인지(0 기준)."""
+        ordinal = 0
+        doc = self.document()
+        block = doc.begin()
+        while block.isValid():
+            it = block.begin()
+            while not it.atEnd():
+                frag = it.fragment()
+                it += 1
+                if not frag.isValid():
+                    continue
+                fmt = frag.charFormat()
+                if not fmt.isImageFormat():
+                    continue
+                name = fmt.toImageFormat().name()
+                if not name or is_marker_url(name):
+                    continue
+                if frag.contains(position):
+                    return ordinal + (position - frag.position())
+                ordinal += max(1, frag.length())
+            block = block.next()
+        return 0
+
     def _available_image_width(self) -> int:
         ml, _, mr, _ = config.TEXT_MARGINS
         return max(60, self.viewport().width() - ml - mr - 4)
@@ -766,11 +984,19 @@ class RichTextEdit(QTextEdit):
                 if frag.isValid():
                     fmt = frag.charFormat()
                     if fmt.isImageFormat():
-                        new_fmt = self._fit_image_format(
-                            doc, fmt.toImageFormat(), avail)
-                        if new_fmt is not None:
-                            changes.append(
-                                (frag.position(), frag.length(), new_fmt))
+                        img_fmt = fmt.toImageFormat()
+                        target = self._fit_target(img_fmt, avail)
+                        if target is not None:
+                            new_w, new_h = target
+                            # 표시 크기가 그대로여도 리소스가 아직 원본이면
+                            # (방금 삽입) 표시용 사본으로 바꾼다.
+                            self._set_display_resource(
+                                img_fmt.name(), new_w, new_h)
+                            new_fmt = self._fit_image_format(
+                                img_fmt, new_w, new_h)
+                            if new_fmt is not None:
+                                changes.append(
+                                    (frag.position(), frag.length(), new_fmt))
                 it += 1
             block = block.next()
         if not changes:
@@ -785,32 +1011,28 @@ class RichTextEdit(QTextEdit):
         finally:
             cur.endEditBlock()
 
-    def _fit_image_format(self, doc: QTextDocument, img_fmt: QTextImageFormat,
-                          avail: int) -> QTextImageFormat | None:
+    def _fit_target(self, img_fmt: QTextImageFormat,
+                    avail: int) -> tuple[int, int] | None:
+        """뷰포트 폭 ``avail`` 에 맞춘 표시 크기. 원본보다 키우지 않는다."""
         name = img_fmt.name()
         # 마커 아이콘은 본래 캔버스 크기를 유지해야 하며 사진처럼 뷰포트에
         # 맞춰 스케일되면 안 된다.
-        if is_marker_url(name):
+        if not name or is_marker_url(name):
             return None
-        url = QUrl(name)
-        resource = doc.resource(QTextDocument.ImageResource, url)
-        if not isinstance(resource, QImage) or resource.isNull():
-            ba = _data_url_payload(name)
-            if ba.isEmpty():
-                return None
-            img = QImage()
-            img.loadFromData(ba)
-            if img.isNull():
-                return None
-            doc.addResource(QTextDocument.ImageResource, url, img)
-            resource = img
-        orig_w = resource.width()
-        orig_h = resource.height()
+        meta = self._image_meta(name)
+        if meta is None:
+            return None
+        orig_w, orig_h, _animated = meta
         if orig_w <= 0:
             return None
         new_w = min(orig_w, avail)
         scale = new_w / orig_w
         new_h = max(1, int(round(orig_h * scale)))
+        return new_w, new_h
+
+    @staticmethod
+    def _fit_image_format(img_fmt: QTextImageFormat, new_w: int,
+                          new_h: int) -> QTextImageFormat | None:
         if (abs(img_fmt.width() - new_w) < 0.5
                 and abs(img_fmt.height() - new_h) < 0.5):
             return None

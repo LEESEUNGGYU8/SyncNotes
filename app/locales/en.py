@@ -87,7 +87,7 @@ STRINGS = {
     "sticky.tip_highlight": "Highlight (Ctrl+Shift+H)",
     "sticky.tip_list": "List (Ctrl+Shift+L)",
     "sticky.tip_image": "Attach image",
-    "sticky.tip_image_full": "Attach image (paste and drag also work)\nWhile selecting text, hold Ctrl and scroll the mouse wheel to adjust font size",
+    "sticky.tip_image_full": "Attach image (paste and drag also work)\nWhile selecting text, hold Ctrl and scroll the mouse wheel to adjust font size\nDouble-click an image to view it larger",
     "sticky.private_icon_tip": "Private — not visible to other users.",
     "sticky.menu_circle": "Circle",
     "sticky.menu_square": "Square",
@@ -105,6 +105,18 @@ STRINGS = {
     "sticky.lock_overlay": "{holder} is editing",
     "sticky.img_dialog_title": "Select image",
     "sticky.img_filter": "Image files (*.png *.jpg *.jpeg *.gif *.bmp *.webp *.apng)",
+
+    # ── Image viewer (image_viewer.py) ──
+    "imgview.window_title": "Image viewer",
+    "imgview.window_title_n": "Image viewer ({index}/{total})",
+    "imgview.counter": "{index} / {total}",
+    "imgview.zoom": "{percent}%",
+    "imgview.tip_prev": "Previous image (←)",
+    "imgview.tip_next": "Next image (→)",
+    "imgview.tip_fit": "Fit to window (0)",
+    "imgview.tip_actual": "Actual size (1)",
+    "imgview.tip_wheel": "Scroll to zoom, drag to pan",
+    "imgview.load_failed": "The image could not be loaded.",
 
     # ── Participants dialog (sessions_dialog.py) ──
     "sessions.window_title": "Participants",
@@ -142,6 +154,10 @@ STRINGS = {
     "settings.check_close_to_tray": "Minimize to tray when the main window is closed",
     "settings.check_move_checked_to_bottom": "Move checked checkbox lines to the bottom",
     "settings.note_move_checked_to_bottom": "When on, checking a checkbox bullet moves that line to the very bottom of the note.",
+    "settings.label_image_viewer": "Double-click on image",
+    "settings.image_viewer_builtin": "Open in the built-in image viewer",
+    "settings.image_viewer_system": "Open in the default Windows image viewer",
+    "settings.note_image_viewer": "How an image inside a note opens when you double-click it. With the default Windows viewer, the image is saved to a temporary file and opened with the associated app (such as Photos). If that fails, the built-in viewer opens instead.",
     "settings.check_autostart": "Run automatically when Windows starts",
     "settings.note_autostart_hint": "Auto-start applies only to the current user account.",
     "settings.note_autostart_unsupported": "This option has no effect on platforms other than Windows.",

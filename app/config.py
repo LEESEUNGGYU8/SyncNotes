@@ -3,7 +3,7 @@ from pathlib import Path
 
 APP_NAME = "SyncNotes"
 # 앱 버전의 단일 출처. 자동 업데이트가 이 값을 GitHub 릴리스 태그와 비교한다.
-APP_VERSION = "1.0.5"
+APP_VERSION = "1.0.6"
 
 # 포크해서 다른 곳에 배포하려면 이 두 값만 바꾼다.
 UPDATE_REPO_OWNER = "LEESEUNGGYU8"
@@ -51,7 +51,10 @@ DEFAULT_NOTE_WIDTH = 280
 DEFAULT_NOTE_HEIGHT = 260
 MIN_NOTE_WIDTH = 220
 MIN_NOTE_HEIGHT = 180
-MAX_IMAGE_WIDTH = 520
+# 첨부 시 이 폭을 넘는 이미지는 여기까지 줄여 저장한다. 1920 은 FHD 스크린샷이
+# 손실 없이 들어가는 폭이다(2026-09 이전에는 520 이었고, 이미지 뷰어에서 크게 볼
+# 수 있도록 올렸다). 메모 안 표시는 RichTextEdit 이 표시 크기로 따로 줄여 그린다.
+MAX_IMAGE_WIDTH = 1920
 FORMAT_BAR_HEIGHT = 36
 
 TEXT_MARGINS = (18, 10, 18, 18)  # 좌, 상, 우, 하 (px)

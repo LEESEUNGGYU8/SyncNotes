@@ -93,7 +93,7 @@ STRINGS = {
     "sticky.tip_highlight": "배경색 (Ctrl+Shift+H)",
     "sticky.tip_list": "목록 (Ctrl+Shift+L)",
     "sticky.tip_image": "이미지 첨부",
-    "sticky.tip_image_full": "이미지 첨부 (붙여넣기·드래그도 가능)\n본문을 드래그한 상태에서 Ctrl+마우스 휠로 글자 크기 조절",
+    "sticky.tip_image_full": "이미지 첨부 (붙여넣기·드래그도 가능)\n본문을 드래그한 상태에서 Ctrl+마우스 휠로 글자 크기 조절\n이미지를 더블 클릭하면 크게 볼 수 있습니다",
     "sticky.private_icon_tip": "나만 보기 — 다른 사용자에게는 보이지 않습니다.",
     "sticky.menu_circle": "동그라미",
     "sticky.menu_square": "네모",
@@ -111,6 +111,18 @@ STRINGS = {
     "sticky.lock_overlay": "{holder}님이 편집 중입니다",
     "sticky.img_dialog_title": "이미지 선택",
     "sticky.img_filter": "이미지 파일 (*.png *.jpg *.jpeg *.gif *.bmp *.webp *.apng)",
+
+    # ── 이미지 뷰어 (image_viewer.py) ──
+    "imgview.window_title": "이미지 보기",
+    "imgview.window_title_n": "이미지 보기 ({index}/{total})",
+    "imgview.counter": "{index} / {total}",
+    "imgview.zoom": "{percent}%",
+    "imgview.tip_prev": "이전 이미지 (←)",
+    "imgview.tip_next": "다음 이미지 (→)",
+    "imgview.tip_fit": "창에 맞춤 (0)",
+    "imgview.tip_actual": "실제 크기 (1)",
+    "imgview.tip_wheel": "마우스 휠로 확대·축소, 드래그로 이동",
+    "imgview.load_failed": "이미지를 불러올 수 없습니다.",
 
     # ── 참가자 대화상자 (sessions_dialog.py) ──
     "sessions.window_title": "참가자",
@@ -148,6 +160,10 @@ STRINGS = {
     "settings.check_close_to_tray": "메인 창 닫기 시 트레이로 최소화",
     "settings.check_move_checked_to_bottom": "체크박스에 체크 표시한 문장을 최하단으로 이동",
     "settings.note_move_checked_to_bottom": "켜져 있으면, 체크박스 글머리 기호의 항목을 체크할 때마다 해당 줄이 메모의 가장 아래로 이동합니다.",
+    "settings.label_image_viewer": "이미지 더블 클릭",
+    "settings.image_viewer_builtin": "자체 이미지 뷰어로 열기",
+    "settings.image_viewer_system": "Windows 기본 이미지 뷰어로 열기",
+    "settings.note_image_viewer": "메모 안의 이미지를 더블 클릭했을 때 여는 방법입니다. Windows 기본 이미지 뷰어를 고르면 이미지를 임시 파일로 저장한 뒤 사진 앱 등 연결된 프로그램으로 엽니다. 열지 못하면 자체 뷰어로 대신 엽니다.",
     "settings.check_autostart": "Windows 시작 시 자동 실행",
     "settings.note_autostart_hint": "자동 실행은 현재 사용자 계정에만 적용됩니다.",
     "settings.note_autostart_unsupported": "Windows 이외의 플랫폼에서는 이 옵션이 적용되지 않습니다.",

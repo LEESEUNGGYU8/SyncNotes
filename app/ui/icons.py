@@ -150,6 +150,31 @@ _SVG = {
         '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" '
         'stroke="{color}" stroke-width="2" fill="none" stroke-linejoin="round"/></svg>'
     ),
+    # 이미지 뷰어의 이전/다음 전환 버튼.
+    "chevron_left": (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+        '<path d="M15 5l-7 7 7 7" stroke="{color}" stroke-width="2.2" '
+        'fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    ),
+    "chevron_right": (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+        '<path d="M9 5l7 7-7 7" stroke="{color}" stroke-width="2.2" '
+        'fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    ),
+    # 이미지 뷰어의 '창에 맞춤' (네 모서리 화살표).
+    "fit_screen": (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+        '<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" '
+        'stroke="{color}" stroke-width="2" fill="none" '
+        'stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    ),
+    # 이미지 뷰어의 '실제 크기' (안쪽에 원본 프레임이 든 사각형).
+    "actual_size": (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+        '<rect x="3.5" y="3.5" width="17" height="17" rx="2.5" '
+        'stroke="{color}" stroke-width="2" fill="none"/>'
+        '<rect x="8.5" y="8.5" width="7" height="7" rx="1.2" fill="{color}"/></svg>'
+    ),
 }
 
 
